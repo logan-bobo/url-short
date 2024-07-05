@@ -13,7 +13,7 @@ import (
 
 func extractAuthTokenFromRequest(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
-	
+
 	if authHeader == "" {
 		return "", errors.New("no authorization header supplied")
 	}
@@ -28,7 +28,7 @@ func extractAuthTokenFromRequest(r *http.Request) (string, error) {
 		return "", errors.New("invalid data in authorization header")
 	}
 
-	return splitAuth[1], nil 
+	return splitAuth[1], nil
 }
 
 type authedHandeler func(http.ResponseWriter, *http.Request, database.User)

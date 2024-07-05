@@ -405,7 +405,7 @@ func (apiCfg *apiConfig) postAPIRefresh(w http.ResponseWriter, r *http.Request) 
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	
+
 	user, err := apiCfg.DB.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
 
 	if err != nil {
