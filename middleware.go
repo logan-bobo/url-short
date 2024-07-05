@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,28 +11,36 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+func extractAuthTokenFromRequest(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+
+	if authHeader == "" {
+		return "", errors.New("no authorization header supplied")
+	}
+
+	splitAuth := strings.Split(authHeader, " ")
+
+	if len(splitAuth) == 0 {
+		return "", errors.New("empty authorization header")
+	}
+
+	if len(splitAuth) != 2 && splitAuth[0] != "Bearer" {
+		return "", errors.New("invalid data in authorization header")
+	}
+
+	return splitAuth[1], nil
+}
+
 type authedHandeler func(http.ResponseWriter, *http.Request, database.User)
 
 func (apiCfg *apiConfig) authenticationMiddleware(handler authedHandeler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
+		requestToken, err := extractAuthTokenFromRequest(r)
 
-		if authHeader == "" {
-			respondWithError(w, http.StatusBadRequest, "no auth header supplied")
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, err.Error())
 			return
 		}
-
-		splitAuth := strings.Split(authHeader, " ")
-
-		if len(splitAuth) == 0 {
-			respondWithError(w, http.StatusBadRequest, "empty auth header")
-		}
-
-		if len(splitAuth) != 2 && splitAuth[0] != "Bearer" {
-			respondWithError(w, http.StatusBadRequest, "invalid paremeters")
-		}
-
-		requestToken := splitAuth[1]
 
 		claims := jwt.RegisteredClaims{}
 

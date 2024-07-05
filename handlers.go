@@ -11,7 +11,6 @@ import (
 	"net/mail"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -400,26 +399,12 @@ func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, use
 }
 
 func (apiCfg *apiConfig) postAPIRefresh(w http.ResponseWriter, r *http.Request) {
-	// We handle the Auth header in two places if we do this a third time pull this out into a general Auth header
-	// processing function
-	authHeader := r.Header.Get("Authorization")
+	requestToken, err := extractAuthTokenFromRequest(r)
 
-	if authHeader == "" {
-		respondWithError(w, http.StatusBadRequest, "no auth header supplied")
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	splitAuth := strings.Split(authHeader, " ")
-
-	if len(splitAuth) == 0 {
-		respondWithError(w, http.StatusBadRequest, "empty auth header")
-	}
-
-	if len(splitAuth) != 2 && splitAuth[0] != "Bearer" {
-		respondWithError(w, http.StatusBadRequest, "invalid paremeters")
-	}
-
-	requestToken := splitAuth[1]
 
 	user, err := apiCfg.DB.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
 
