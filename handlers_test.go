@@ -25,7 +25,7 @@ func TestHealthEndpoint(t *testing.T) {
 		apiCfg.healthz(response, request)
 
 		// its not a good idea to use a stuct we already define in our code
-		// this could introduce a subtle bug where a test could pass because 
+		// this could introduce a subtle bug where a test could pass because
 		// we incorrectly altered this struct
 		got := HealthResponse{}
 		err := json.NewDecoder(response.Body).Decode(&got)
@@ -44,7 +44,7 @@ func TestHealthEndpoint(t *testing.T) {
 	})
 }
 
-func TestPostUser(t *testing.T){
+func TestPostUser(t *testing.T) {
 	dbURL := os.Getenv("PG_CONN")
 
 	db, err := sql.Open("postgres", dbURL)
@@ -54,9 +54,9 @@ func TestPostUser(t *testing.T){
 	}
 
 	provider, err := goose.NewProvider(
-		goose.DialectPostgres, 
-		db, 
-		os.DirFS("./sql/schema/"), 
+		goose.DialectPostgres,
+		db,
+		os.DirFS("./sql/schema/"),
 	)
 
 	if err != nil {
@@ -82,9 +82,9 @@ func TestPostUser(t *testing.T){
 		response := httptest.NewRecorder()
 
 		apiCfg := apiConfig{
-			DB: dbQueries, 
+			DB: dbQueries,
 		}
-		
+
 		apiCfg.postAPIUsers(response, request)
 
 		got := APIUsersResponse{}
@@ -97,5 +97,5 @@ func TestPostUser(t *testing.T){
 		if got.Email != "test@mail.com" {
 			t.Errorf("unexpected email in response, got %q, wanted %q", got.Email, "test@mail.com")
 		}
-	})	
+	})
 }

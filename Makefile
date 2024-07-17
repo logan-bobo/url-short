@@ -1,11 +1,11 @@
 COMPOSE_TEST_FILE="${PWD}/docker-compose-test.yaml"
 
 fmt:
-	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose run --rm --remove-orphans api go fmt
+	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose run --rm --remove-orphans api-test go fmt
 .PHONY:fmt
 
 lint: fmt
-	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose run --rm --remove-orphans api golangci-lint run -v
+	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose run --rm --remove-orphans api-test golangci-lint run -v
 .PHONY:lint
 
 build:
