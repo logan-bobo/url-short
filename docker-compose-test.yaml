@@ -1,10 +1,29 @@
 version: '3.1'
 
 services:
-  api:
+  api-test:
     image: url-short:test
     env_file:
-      - .env
+      - .envtest
     volumes:
     - ./:/opt/url-short
-
+  db-test:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    user: postgres
+    volumes:
+      -  pgdatatest:/var/lib/postgresql/data
+      -  ./bin/local-init.sql:/docker-entrypoint-initdb.d/local-init.sql
+    ports:
+      - 5002:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+volumes:
+  pgdatatest:

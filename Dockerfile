@@ -19,6 +19,8 @@ RUN apk add --update go=1.22.4-r0
 
 RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.59.1
 
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest
+
 WORKDIR /opt/url-short/
 
 FROM base AS production
