@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,32 @@ import (
 
 	"url-short/internal/database"
 )
+
+func resetDB(db *sql.DB) error {
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres,
+		db,
+		os.DirFS("./sql/schema/"),
+	)
+
+	if err != nil {
+		return errors.New("can not create goose provider")
+	}
+
+	_, err = provider.DownTo(context.Background(), 0)
+
+	if err != nil {
+		return errors.New("can not reset database")
+	}
+
+	_, err = provider.Up(context.Background())
+
+	if err != nil {
+		return errors.New("could not run migrations")
+	}
+
+	return nil 
+}
 
 func TestHealthEndpoint(t *testing.T) {
 	t.Run("test healthz endpoint", func(t *testing.T) {
@@ -46,33 +73,20 @@ func TestHealthEndpoint(t *testing.T) {
 
 func TestPostUser(t *testing.T) {
 	dbURL := os.Getenv("PG_CONN")
-
 	db, err := sql.Open("postgres", dbURL)
 
 	if err != nil {
 		t.Errorf("can not open database connection")
 	}
 
-	provider, err := goose.NewProvider(
-		goose.DialectPostgres,
-		db,
-		os.DirFS("./sql/schema/"),
-	)
+	err = resetDB(db)
 
 	if err != nil {
-		t.Errorf("can not create goose provider %q", err)
-		return
+		t.Errorf("could not resetDB %q", err)
 	}
-
-	results, err := provider.Up(context.Background())
-
-	if err != nil {
-		t.Errorf("could not run migrations %q", err)
-	}
-
-	t.Log(results)
 
 	dbQueries := database.New(db)
+
 
 	t.Run("test user creation", func(t *testing.T) {
 		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
