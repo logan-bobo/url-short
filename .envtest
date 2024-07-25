@@ -1,0 +1,5 @@
+SERVER_PORT="8080"
+PG_CONN="postgres://url_short:password@db-test:5432/url_short?sslmode=disable"
+JWT_SECRET="mY+gjoSSg9qeEE0J3mDIlEkp3cEMk0sRReoNkOnLmnGYiWj0/2K0zl9cj1e8QJ34
+LHc0sHPkhqATCfB9ENHxNQ=="
+RDB_CONN="redis://redis:6379/0"
