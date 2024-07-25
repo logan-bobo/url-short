@@ -41,7 +41,7 @@ jobs:
       - name: Run Tests
         run: make test
   build:
-    needs: unit-test
+    needs: test
     name: build
     runs-on: ubuntu-latest
     steps:
