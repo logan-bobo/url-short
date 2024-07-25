@@ -5,7 +5,7 @@ RUN apk upgrade
 
 FROM base AS builder
 
-RUN apk add --update go=1.22.4-r0
+RUN apk add --update go=1.22.5-r0
 
 WORKDIR /build
 
@@ -15,11 +15,9 @@ RUN go build -o main .
 
 FROM base AS tester
 
-RUN apk add --update go=1.22.4-r0
+RUN apk add --update go=1.22.5-r0
 
 RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.59.1
-
-RUN go install github.com/pressly/goose/v3/cmd/goose@latest
 
 WORKDIR /opt/url-short/
 
