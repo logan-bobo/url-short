@@ -39,7 +39,7 @@ func resetDB(db *sql.DB) error {
 		return errors.New("could not run migrations")
 	}
 
-	return nil 
+	return nil
 }
 
 func TestHealthEndpoint(t *testing.T) {
@@ -86,7 +86,6 @@ func TestPostUser(t *testing.T) {
 	}
 
 	dbQueries := database.New(db)
-
 
 	t.Run("test user creation", func(t *testing.T) {
 		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
