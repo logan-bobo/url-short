@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -351,5 +352,83 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("user login does not return expected results got %q", got)
 		}
 	})
+}
 
+func TestRefreshEndpoint(t *testing.T) {
+	dbURL := os.Getenv("PG_CONN")
+	db, err := sql.Open("postgres", dbURL)
+
+	if err != nil {
+		t.Errorf("can not open database connection")
+	}
+
+	err = resetDB(db)
+
+	if err != nil {
+		t.Errorf("could not resetDB %q", err)
+	}
+
+	dbQueries := database.New(db)
+
+	// setup a user to user for this test case
+	requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+	request.Header.Set("Content-Type", "application/json")
+
+	apiCfg := apiConfig{
+		DB: dbQueries,
+	}
+
+	response := httptest.NewRecorder()
+
+	apiCfg.postAPIUsers(response, request)
+
+	got := APIUsersResponse{}
+
+	err = json.NewDecoder(response.Body).Decode(&got)
+
+	if err != nil {
+		t.Errorf("could not setup user for this test case %q", err)
+	}
+
+	t.Run("test valid user can get a new access token based on a valid refresh token", func(t *testing.T) {
+		// make a request to the login endpoint to be given our token data, refresh and access
+		loginRequestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+		loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(loginRequestJSON))
+		loginRequest.Header.Set("Content-Type", "application/json")
+
+		loginResponse := httptest.NewRecorder()
+
+		apiCfg.postAPILogin(loginResponse, loginRequest)
+
+		loginGot := APIUsersResponse{}
+
+		err := json.NewDecoder(loginResponse.Body).Decode(&loginGot)
+
+		if err != nil {
+			t.Errorf("could not parse login request")
+		}
+
+		// use our refresh token to be given a new access token
+		refreshRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", http.NoBody)
+
+		buildHeader := fmt.Sprintf("Bearer %s", loginGot.RefreshToken)
+		refreshRequest.Header.Set("Authorization", buildHeader)
+
+		refreshResponse := httptest.NewRecorder()
+
+		apiCfg.postAPIRefresh(refreshResponse, refreshRequest)
+
+		refreshGot := APIUsersRefreshResponse{}
+
+		err = json.NewDecoder(refreshResponse.Body).Decode(&refreshGot)
+
+		if err != nil {
+			t.Error("could not decode refreshResponse")
+		}
+
+		if refreshGot.Token == "" {
+			t.Errorf("no token was returned from refresh endpoint got %q", refreshGot.Token)
+		}
+	})
 }
