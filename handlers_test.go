@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -87,7 +88,7 @@ func TestPostUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	t.Run("test user creation", func(t *testing.T) {
+	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
 		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
 		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
 		request.Header.Set("Content-Type", "application/json")
@@ -111,4 +112,34 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unexpected email in response, got %q, wanted %q", got.Email, "test@mail.com")
 		}
 	})
+
+	t.Run("test user creation with bad parameters", func(t *testing.T) {
+		requestJSON := []byte(`{"gmail":"test@mail.com", "auth": "test", "extra_data": "data"}`)
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		apiCfg := apiConfig{
+			DB: dbQueries,
+		}
+
+		apiCfg.postAPIUsers(response, request)
+		
+		got := errorResponse{}
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("unable to parse response %q into %q", response.Body, got)
+		}
+
+		want := "incorrect parameters for user creation"  
+		if got.Error != want {
+			fmt.Println(got)
+			t.Errorf("incorrect error when invalid json used got %q wanted %q", got.Error, want)
+		}
+	})
+
+	db.Close()
 }

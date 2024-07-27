@@ -248,6 +248,11 @@ func (apiCfg *apiConfig) postAPIUsers(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println(err)
+		respondWithError(w, http.StatusBadRequest, "could not parse request")
+		return
+	}
+
+	if payload.Email == "" || payload.Password == "" {
 		respondWithError(w, http.StatusBadRequest, "incorrect parameters for user creation")
 		return
 	}
