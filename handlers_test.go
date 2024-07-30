@@ -284,7 +284,7 @@ func TestPostLogin(t *testing.T) {
 		}
 	})
 
-	t.Run("test user login fails when user can not be found", func(t *testing.T){
+	t.Run("test user login fails when user can not be found", func(t *testing.T) {
 		requestJSON := []byte(`{"email": "mail@not-found.com", "password": "test"}`)
 		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
 		request.Header.Set("Content-Type", "application/json")
@@ -305,5 +305,5 @@ func TestPostLogin(t *testing.T) {
 		if got.Error != want {
 			t.Errorf("incorrect error when non existent user attempts to login")
 		}
-	})	
+	})
 }
