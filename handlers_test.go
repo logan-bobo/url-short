@@ -303,7 +303,53 @@ func TestPostLogin(t *testing.T) {
 
 		want := "could not find user"
 		if got.Error != want {
-			t.Errorf("incorrect error when non existent user attempts to login")
+			t.Errorf("incorrect error when non existent user attempts to login got %q want %q", got.Error, want)
 		}
 	})
+
+	t.Run("test user login fails with invalid password", func(t *testing.T) {
+		requestJSON := []byte(`{"email": "test@mail.com", "password": "testerrrrr"}`)
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		apiCfg.postAPILogin(response, request)
+
+		got := errorResponse{}
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("could not parse response %q", err)
+		}
+
+		want := "invalid password"
+		if got.Error != want {
+			t.Errorf("incorrect error when incorrect password is supplied got %q want %q", got.Error, want)
+		}
+	})
+
+	t.Run("test user is returned correct ID, Email, Token and a Refresh Token", func(t *testing.T) {
+		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		apiCfg.postAPILogin(response, request)
+
+		got := APIUsersResponse{}
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("could not parse response %q", err)
+		}
+
+		if got.ID != 1 || got.Email != "test@mail.com" || got.Token == "" || got.RefreshToken == "" {
+			t.Errorf("user login does not return expected results got %q", got)
+		}
+	})
+
 }
