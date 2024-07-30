@@ -194,5 +194,32 @@ func TestPostUser(t *testing.T) {
 		}
 	})
 
+	t.Run("test a duplicate user can not be created", func(t *testing.T) {
+		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		apiCfg := apiConfig{
+			DB: dbQueries,
+		}
+
+		apiCfg.postAPIUsers(response, request)
+
+		got := errorResponse{}
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("unable to parse response %q into %q", response.Body, got)
+		}
+
+		want := "could not create user in database"
+		if got.Error != want {
+			t.Errorf("expected duplicate user to fail got %q wanted %q", got.Error, want)
+		}
+
+	})
+
 	db.Close()
 }
