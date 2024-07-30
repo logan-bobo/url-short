@@ -74,11 +74,12 @@ func TestHealthEndpoint(t *testing.T) {
 func TestPostUser(t *testing.T) {
 	dbURL := os.Getenv("PG_CONN")
 	db, err := sql.Open("postgres", dbURL)
-	defer db.Close()
 
 	if err != nil {
 		t.Errorf("can not open database connection")
 	}
+
+	defer db.Close()
 
 	err = resetDB(db)
 
@@ -239,7 +240,7 @@ func TestPostLogin(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	// setup a user to use in these tests
+	// setup a user to user for this test case
 	requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
 	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
 	request.Header.Set("Content-Type", "application/json")
@@ -283,4 +284,26 @@ func TestPostLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("test user login fails when user can not be found", func(t *testing.T){
+		requestJSON := []byte(`{"email": "mail@not-found.com", "password": "test"}`)
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		apiCfg.postAPILogin(response, request)
+
+		got := errorResponse{}
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("could not parse response %q", err)
+		}
+
+		want := "could not find user"
+		if got.Error != want {
+			t.Errorf("incorrect error when non existent user attempts to login")
+		}
+	})	
 }
