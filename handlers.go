@@ -299,8 +299,12 @@ func (apiCfg *apiConfig) postAPILogin(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid parameters for login")
+		respondWithError(w, http.StatusBadRequest, "could not parse request")
 		return
+	}
+
+	if payload.Email == "" || payload.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "invalid parameters for user login")
 	}
 
 	user, err := apiCfg.DB.SelectUser(r.Context(), payload.Email)

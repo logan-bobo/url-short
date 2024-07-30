@@ -74,6 +74,7 @@ func TestHealthEndpoint(t *testing.T) {
 func TestPostUser(t *testing.T) {
 	dbURL := os.Getenv("PG_CONN")
 	db, err := sql.Open("postgres", dbURL)
+	defer db.Close()
 
 	if err != nil {
 		t.Errorf("can not open database connection")
@@ -220,6 +221,66 @@ func TestPostUser(t *testing.T) {
 		}
 
 	})
+}
 
-	db.Close()
+func TestPostLogin(t *testing.T) {
+	dbURL := os.Getenv("PG_CONN")
+	db, err := sql.Open("postgres", dbURL)
+
+	if err != nil {
+		t.Errorf("can not open database connection")
+	}
+
+	err = resetDB(db)
+
+	if err != nil {
+		t.Errorf("could not resetDB %q", err)
+	}
+
+	dbQueries := database.New(db)
+
+	// setup a user to use in these tests
+	requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+	request.Header.Set("Content-Type", "application/json")
+
+	apiCfg := apiConfig{
+		DB: dbQueries,
+	}
+
+	response := httptest.NewRecorder()
+
+	apiCfg.postAPIUsers(response, request)
+
+	got := APIUsersResponse{}
+
+	err = json.NewDecoder(response.Body).Decode(&got)
+
+	if err != nil {
+		t.Errorf("could not setup user for this test case %q", err)
+	}
+
+	t.Run("test user login fails with incorrect payload", func(t *testing.T) {
+		requestJSON := []byte(`{"email": "test@mail.com", "invalid": "test"}`)
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		apiCfg.postAPILogin(response, request)
+
+		got := errorResponse{}
+
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("could not parse response %q", err)
+		}
+
+		want := "invalid parameters for user login"
+		if got.Error != want {
+			t.Errorf("incorrect error when passing invalid login parameters got %q want %q", got.Error, want)
+		}
+	})
+
 }
