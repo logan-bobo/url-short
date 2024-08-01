@@ -26,7 +26,7 @@ stop:
 
 test:
 	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose up -d
-	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose run --rm --remove-orphans api-test go test -cover ./...
+	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose run --rm --remove-orphans api-test go test ./...
 	COMPOSE_FILE=${COMPOSE_TEST_FILE} docker compose down
 .PHONY:test
 
