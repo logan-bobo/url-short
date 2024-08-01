@@ -34,3 +34,23 @@ func TestRespondWithJSON(t *testing.T) {
 		}
 	})
 }
+
+func TestRespondWithError(t *testing.T) {
+	t.Run("test respond with error with generic error", func(t *testing.T) {
+		response := httptest.NewRecorder()
+
+		respondWithError(response, http.StatusInternalServerError, "stuff is broken")
+
+		wantStruct := errorResponse{}
+
+		err := json.NewDecoder(response.Body).Decode(&wantStruct)
+
+		if err != nil {
+			t.Errorf("could not parse result as expected")
+		}
+
+		if wantStruct.Error != "stuff is broken" {
+			t.Errorf("failed to respond with a generic error")
+		}
+	})
+}
