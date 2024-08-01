@@ -1,32 +1,36 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-
-func TestRespondWithJSON(t *testing.T){
-	t.Run("test respond with json with generic interface", func(t *testing.T){
+func TestRespondWithJSON(t *testing.T) {
+	t.Run("test respond with json with generic interface", func(t *testing.T) {
 		response := httptest.NewRecorder()
 
-		type fooStruct struct {
-			foo string
+		type FooStruct struct {
+			Foo string `json:"foo"`
 		}
 
-		testStruct := fooStruct{
-			foo: "bar",
+		testStruct := FooStruct{
+			Foo: "bar",
 		}
-
-		fmt.Println(testStruct, response.Body)
 
 		respondWithJSON(response, http.StatusOK, testStruct)
 
-		want := `{"foo": "bar"}`
-		if response.Body.String() != want {
-			t.Errorf("failed to respond with arbitrary interface got %q want %q", response.Body.String(), want)
+		wantStruct := FooStruct{}
+
+		err := json.NewDecoder(response.Body).Decode(&wantStruct)
+
+		if err != nil {
+			t.Errorf("could not parse result as expected")
+		}
+
+		if testStruct != wantStruct {
+			t.Errorf("failed to respond with arbitrary interface got %q want %q", testStruct, wantStruct)
 		}
 	})
 }
