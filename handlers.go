@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"net/mail"
@@ -260,7 +259,6 @@ func (apiCfg *apiConfig) postAPIUsers(w http.ResponseWriter, r *http.Request) {
 	_, err = mail.ParseAddress(payload.Email)
 
 	if err != nil {
-		fmt.Println(err)
 		respondWithError(w, http.StatusBadRequest, "invalid email address")
 		return
 	}
