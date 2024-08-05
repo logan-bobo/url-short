@@ -418,7 +418,7 @@ func TestRefreshEndpoint(t *testing.T) {
 	})
 }
 
-func TestPutUser(t *testing.T){
+func TestPutUser(t *testing.T) {
 	dbURL := os.Getenv("PG_CONN")
 	db, err := sql.Open("postgres", dbURL)
 
@@ -464,7 +464,7 @@ func TestPutUser(t *testing.T){
 		t.Errorf("could not parse login request")
 	}
 
-	t.Run("test user can be updated via the put user endpoint", func(t *testing.T){
+	t.Run("test user can be updated via the put user endpoint", func(t *testing.T) {
 		putUserRequestJSON := []byte(`{"email": "test@mail.com", "password":"new-password"}`)
 
 		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(putUserRequestJSON))
@@ -489,7 +489,7 @@ func TestPutUser(t *testing.T){
 		if err != nil {
 			t.Error("coult not parse response")
 		}
-		
+
 		if gotPUTUser.Email == "" || gotPUTUser.ID == 0 {
 			t.Errorf("did not get expected email and ID on post user request")
 		}
@@ -501,10 +501,9 @@ func TestPutUser(t *testing.T){
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(userPostUpdate.Password), []byte("new-password"))
-		
+
 		if err != nil {
 			t.Errorf("hashed password did not match new password got error %q", err)
 		}
 	})
 }
-
