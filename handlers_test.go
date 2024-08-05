@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/pressly/goose/v3"
+	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/database"
 )
@@ -254,14 +255,6 @@ func TestPostLogin(t *testing.T) {
 
 	apiCfg.postAPIUsers(response, request)
 
-	got := APIUsersResponse{}
-
-	err = json.NewDecoder(response.Body).Decode(&got)
-
-	if err != nil {
-		t.Errorf("could not setup user for this test case %q", err)
-	}
-
 	t.Run("test user login fails with incorrect payload", func(t *testing.T) {
 		requestJSON := []byte(`{"email": "test@mail.com", "invalid": "test"}`)
 		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
@@ -370,7 +363,7 @@ func TestRefreshEndpoint(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	// setup a user to user for this test case
+	// setup a user
 	requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
 	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
 	request.Header.Set("Content-Type", "application/json")
@@ -382,14 +375,6 @@ func TestRefreshEndpoint(t *testing.T) {
 	response := httptest.NewRecorder()
 
 	apiCfg.postAPIUsers(response, request)
-
-	got := APIUsersResponse{}
-
-	err = json.NewDecoder(response.Body).Decode(&got)
-
-	if err != nil {
-		t.Errorf("could not setup user for this test case %q", err)
-	}
 
 	t.Run("test valid user can get a new access token based on a valid refresh token", func(t *testing.T) {
 		// make a request to the login endpoint to be given our token data, refresh and access
@@ -432,3 +417,94 @@ func TestRefreshEndpoint(t *testing.T) {
 		}
 	})
 }
+
+func TestPutUser(t *testing.T){
+	dbURL := os.Getenv("PG_CONN")
+	db, err := sql.Open("postgres", dbURL)
+
+	if err != nil {
+		t.Errorf("can not open database connection")
+	}
+
+	err = resetDB(db)
+
+	if err != nil {
+		t.Errorf("could not resetDB %q", err)
+	}
+
+	dbQueries := database.New(db)
+
+	// setup a user
+	createUserRequestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+	createUserRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(createUserRequestJSON))
+	createUserRequest.Header.Set("Content-Type", "application/json")
+
+	apiCfg := apiConfig{
+		DB: dbQueries,
+	}
+
+	createUserResponse := httptest.NewRecorder()
+
+	apiCfg.postAPIUsers(createUserResponse, createUserRequest)
+
+	// login user endpoint
+	loginRequestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
+	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(loginRequestJSON))
+	loginRequest.Header.Set("Content-Type", "application/json")
+
+	loginResponse := httptest.NewRecorder()
+
+	apiCfg.postAPILogin(loginResponse, loginRequest)
+
+	loginGot := APIUsersResponse{}
+
+	err = json.NewDecoder(loginResponse.Body).Decode(&loginGot)
+
+	if err != nil {
+		t.Errorf("could not parse login request")
+	}
+
+	t.Run("test user can be updated via the put user endpoint", func(t *testing.T){
+		putUserRequestJSON := []byte(`{"email": "test@mail.com", "password":"new-password"}`)
+
+		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(putUserRequestJSON))
+
+		buildHeader := fmt.Sprintf("Bearer %s", loginGot.RefreshToken)
+		putUserRequest.Header.Set("Authorization", buildHeader)
+
+		putUserResponse := httptest.NewRecorder()
+
+		user, err := dbQueries.SelectUser(putUserRequest.Context(), "test@mail.com")
+
+		if err != nil {
+			t.Error("could not find user that was expected to exist")
+		}
+
+		apiCfg.putAPIUsers(putUserResponse, putUserRequest, user)
+
+		gotPUTUser := APIUserResponseNoToken{}
+
+		err = json.NewDecoder(putUserResponse.Body).Decode(&gotPUTUser)
+
+		if err != nil {
+			t.Error("coult not parse response")
+		}
+		
+		if gotPUTUser.Email == "" || gotPUTUser.ID == 0 {
+			t.Errorf("did not get expected email and ID on post user request")
+		}
+
+		userPostUpdate, err := dbQueries.SelectUser(putUserRequest.Context(), "test@mail.com")
+
+		if err != nil {
+			t.Error("could not get user post password change")
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(userPostUpdate.Password), []byte("new-password"))
+		
+		if err != nil {
+			t.Errorf("hashed password did not match new password got error %q", err)
+		}
+	})
+}
+
