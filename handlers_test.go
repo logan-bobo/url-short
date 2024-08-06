@@ -52,6 +52,22 @@ func resetDB(db *sql.DB) error {
 	return nil
 }
 
+func setupUserOne(apiCfg *apiConfig) (*bytes.Buffer, error) {
+	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
+
+	if err != nil {
+		return new(bytes.Buffer), err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+
+	response := httptest.NewRecorder()
+
+	apiCfg.postAPIUsers(response, request)
+
+	return response.Body, err
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	t.Run("test healthz endpoint", func(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, "/api/v1/healthz", nil)
@@ -61,9 +77,6 @@ func TestHealthEndpoint(t *testing.T) {
 
 		apiCfg.healthz(response, request)
 
-		// its not a good idea to use a stuct we already define in our code
-		// this could introduce a subtle bug where a test could pass because
-		// we incorrectly altered this struct
 		got := HealthResponse{}
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -99,23 +112,18 @@ func TestPostUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
-		request.Header.Set("Content-Type", "application/json")
-
-		response := httptest.NewRecorder()
-
-		apiCfg := apiConfig{
+	apiCfg := apiConfig{
 			DB: dbQueries,
-		}
+	}
 
-		apiCfg.postAPIUsers(response, request)
+	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
+		response, err := setupUserOne(&apiCfg) 
 
 		got := APIUsersResponse{}
-		err := json.NewDecoder(response.Body).Decode(&got)
+		err = json.NewDecoder(response).Decode(&got)
 
 		if err != nil {
-			t.Errorf("unable to parse response %q into %q", response.Body, got)
+			t.Errorf("unable to parse response %q into %q", response, got)
 		}
 
 		if got.Email != "test@mail.com" {
@@ -128,10 +136,6 @@ func TestPostUser(t *testing.T) {
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
-
-		apiCfg := apiConfig{
-			DB: dbQueries,
-		}
 
 		apiCfg.postAPIUsers(response, request)
 
@@ -154,10 +158,6 @@ func TestPostUser(t *testing.T) {
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
-
-		apiCfg := apiConfig{
-			DB: dbQueries,
-		}
 
 		apiCfg.postAPIUsers(response, request)
 
@@ -182,10 +182,6 @@ func TestPostUser(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg := apiConfig{
-			DB: dbQueries,
-		}
-
 		apiCfg.postAPIUsers(response, request)
 
 		got := errorResponse{}
@@ -207,10 +203,6 @@ func TestPostUser(t *testing.T) {
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
-
-		apiCfg := apiConfig{
-			DB: dbQueries,
-		}
 
 		apiCfg.postAPIUsers(response, request)
 
@@ -236,6 +228,8 @@ func TestPostLogin(t *testing.T) {
 	if err != nil {
 		t.Errorf("can not open database connection")
 	}
+
+	defer db.Close()
 
 	err = resetDB(db)
 
@@ -352,6 +346,8 @@ func TestRefreshEndpoint(t *testing.T) {
 	if err != nil {
 		t.Errorf("can not open database connection")
 	}
+	
+	defer db.Close()
 
 	err = resetDB(db)
 
@@ -422,6 +418,8 @@ func TestPutUser(t *testing.T) {
 	if err != nil {
 		t.Errorf("can not open database connection")
 	}
+
+	defer db.Close()
 
 	err = resetDB(db)
 
