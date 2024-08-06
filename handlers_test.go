@@ -374,7 +374,7 @@ func TestRefreshEndpoint(t *testing.T) {
 	apiCfg.postAPIUsers(response, request)
 
 	t.Run("test valid user can get a new access token based on a valid refresh token", func(t *testing.T) {
-		
+
 		// make a request to the login endpoint to be given our token data, refresh and access
 		loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 		loginRequest.Header.Set("Content-Type", "application/json")
