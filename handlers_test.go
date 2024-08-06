@@ -18,6 +18,14 @@ import (
 	"url-short/internal/database"
 )
 
+var (
+	userOne                = []byte(`{"email": "test@mail.com", "password": "test"}`)
+	userOneUpdatedPassword = []byte(`{"email": "test@mail.com", "password":"new-password"}`)
+	userOneBadPassword     = []byte(`{"email": "test@mail.com", "password": "testerrrrr"}`)
+	userBadInput           = []byte(`{"gmail":"test@mail.com", "auth": "test", "extra_data": "data"}`)
+	userBadEmail           = []byte(`{"email": "test1mail.com", "password": "test"}`)
+)
+
 func resetDB(db *sql.DB) error {
 	provider, err := goose.NewProvider(
 		goose.DialectPostgres,
@@ -92,8 +100,7 @@ func TestPostUser(t *testing.T) {
 	dbQueries := database.New(db)
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -117,8 +124,7 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test user creation with bad parameters", func(t *testing.T) {
-		requestJSON := []byte(`{"gmail":"test@mail.com", "auth": "test", "extra_data": "data"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userBadInput))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -144,8 +150,7 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test user creation with no body", func(t *testing.T) {
-		requestJSON := []byte(``)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer([]byte(``)))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -172,8 +177,7 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test user creation with bad email address", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "test1mail.com", "password": "test"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userBadEmail))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -199,8 +203,7 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test a duplicate user can not be created", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -243,8 +246,7 @@ func TestPostLogin(t *testing.T) {
 	dbQueries := database.New(db)
 
 	// setup a user to user for this test case
-	requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 	request.Header.Set("Content-Type", "application/json")
 
 	apiCfg := apiConfig{
@@ -256,8 +258,7 @@ func TestPostLogin(t *testing.T) {
 	apiCfg.postAPIUsers(response, request)
 
 	t.Run("test user login fails with incorrect payload", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "test@mail.com", "invalid": "test"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userBadInput))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -279,8 +280,7 @@ func TestPostLogin(t *testing.T) {
 	})
 
 	t.Run("test user login fails when user can not be found", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "mail@not-found.com", "password": "test"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userBadEmail))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -302,8 +302,7 @@ func TestPostLogin(t *testing.T) {
 	})
 
 	t.Run("test user login fails with invalid password", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "test@mail.com", "password": "testerrrrr"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOneBadPassword))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -325,8 +324,7 @@ func TestPostLogin(t *testing.T) {
 	})
 
 	t.Run("test user is returned correct ID, Email, Token and a Refresh Token", func(t *testing.T) {
-		requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(requestJSON))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -364,8 +362,7 @@ func TestRefreshEndpoint(t *testing.T) {
 	dbQueries := database.New(db)
 
 	// setup a user
-	requestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(requestJSON))
+	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 	request.Header.Set("Content-Type", "application/json")
 
 	apiCfg := apiConfig{
@@ -377,9 +374,9 @@ func TestRefreshEndpoint(t *testing.T) {
 	apiCfg.postAPIUsers(response, request)
 
 	t.Run("test valid user can get a new access token based on a valid refresh token", func(t *testing.T) {
+		
 		// make a request to the login endpoint to be given our token data, refresh and access
-		loginRequestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-		loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(loginRequestJSON))
+		loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 		loginRequest.Header.Set("Content-Type", "application/json")
 
 		loginResponse := httptest.NewRecorder()
@@ -435,8 +432,7 @@ func TestPutUser(t *testing.T) {
 	dbQueries := database.New(db)
 
 	// setup a user
-	createUserRequestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-	createUserRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(createUserRequestJSON))
+	createUserRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 	createUserRequest.Header.Set("Content-Type", "application/json")
 
 	apiCfg := apiConfig{
@@ -448,8 +444,7 @@ func TestPutUser(t *testing.T) {
 	apiCfg.postAPIUsers(createUserResponse, createUserRequest)
 
 	// login user endpoint
-	loginRequestJSON := []byte(`{"email": "test@mail.com", "password": "test"}`)
-	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(loginRequestJSON))
+	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 	loginRequest.Header.Set("Content-Type", "application/json")
 
 	loginResponse := httptest.NewRecorder()
@@ -465,9 +460,7 @@ func TestPutUser(t *testing.T) {
 	}
 
 	t.Run("test user can be updated via the put user endpoint", func(t *testing.T) {
-		putUserRequestJSON := []byte(`{"email": "test@mail.com", "password":"new-password"}`)
-
-		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(putUserRequestJSON))
+		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(userOneUpdatedPassword))
 
 		buildHeader := fmt.Sprintf("Bearer %s", loginGot.RefreshToken)
 		putUserRequest.Header.Set("Authorization", buildHeader)
