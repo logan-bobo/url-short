@@ -113,13 +113,18 @@ func TestPostUser(t *testing.T) {
 	dbQueries := database.New(db)
 
 	apiCfg := apiConfig{
-			DB: dbQueries,
+		DB: dbQueries,
 	}
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		response, err := setupUserOne(&apiCfg) 
+		response, err := setupUserOne(&apiCfg)
+
+		if err != nil {
+			t.Errorf("can not create user due to error %q", err)
+		}
 
 		got := APIUsersResponse{}
+
 		err = json.NewDecoder(response).Decode(&got)
 
 		if err != nil {
@@ -234,22 +239,20 @@ func TestPostLogin(t *testing.T) {
 	err = resetDB(db)
 
 	if err != nil {
-		t.Errorf("could not resetDB %q", err)
+		t.Errorf("could not reset DB %q", err)
 	}
 
 	dbQueries := database.New(db)
-
-	// setup a user to user for this test case
-	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
-	request.Header.Set("Content-Type", "application/json")
 
 	apiCfg := apiConfig{
 		DB: dbQueries,
 	}
 
-	response := httptest.NewRecorder()
+	_, err = setupUserOne(&apiCfg)
 
-	apiCfg.postAPIUsers(response, request)
+	if err != nil {
+		t.Errorf("can not set up user for test case with err %q", err)
+	}
 
 	t.Run("test user login fails with incorrect payload", func(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userBadInput))
@@ -346,7 +349,7 @@ func TestRefreshEndpoint(t *testing.T) {
 	if err != nil {
 		t.Errorf("can not open database connection")
 	}
-	
+
 	defer db.Close()
 
 	err = resetDB(db)
@@ -357,17 +360,15 @@ func TestRefreshEndpoint(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	// setup a user
-	request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
-	request.Header.Set("Content-Type", "application/json")
-
 	apiCfg := apiConfig{
 		DB: dbQueries,
 	}
 
-	response := httptest.NewRecorder()
+	_, err = setupUserOne(&apiCfg)
 
-	apiCfg.postAPIUsers(response, request)
+	if err != nil {
+		t.Errorf("can not set up user for test case with err %q", err)
+	}
 
 	t.Run("test valid user can get a new access token based on a valid refresh token", func(t *testing.T) {
 
@@ -429,17 +430,15 @@ func TestPutUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	// setup a user
-	createUserRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
-	createUserRequest.Header.Set("Content-Type", "application/json")
-
 	apiCfg := apiConfig{
 		DB: dbQueries,
 	}
 
-	createUserResponse := httptest.NewRecorder()
+	_, err = setupUserOne(&apiCfg)
 
-	apiCfg.postAPIUsers(createUserResponse, createUserRequest)
+	if err != nil {
+		t.Errorf("can not set up user for test case with err %q", err)
+	}
 
 	// login user endpoint
 	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
