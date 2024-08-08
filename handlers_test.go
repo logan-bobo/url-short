@@ -68,6 +68,25 @@ func setupUserOne(apiCfg *apiConfig) (*bytes.Buffer, error) {
 	return response.Body, err
 }
 
+func loginUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
+	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
+	loginRequest.Header.Set("Content-Type", "application/json")
+
+	loginResponse := httptest.NewRecorder()
+
+	apiCfg.postAPILogin(loginResponse, loginRequest)
+
+	loginGot := APIUsersResponse{}
+
+	err := json.NewDecoder(loginResponse.Body).Decode(&loginGot)
+
+	if err != nil {
+		return APIUsersResponse{}, err
+	}
+
+	return loginGot, nil
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	t.Run("test healthz endpoint", func(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, "/api/v1/healthz", nil)
@@ -222,7 +241,6 @@ func TestPostUser(t *testing.T) {
 		if got.Error != want {
 			t.Errorf("expected duplicate user to fail got %q wanted %q", got.Error, want)
 		}
-
 	})
 }
 
@@ -370,28 +388,16 @@ func TestRefreshEndpoint(t *testing.T) {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
+	userOne, err := loginUserOne(&apiCfg)
+
+	if err != nil {
+		t.Errorf("can not login user one for test case with err %q", err)
+	}
+
 	t.Run("test valid user can get a new access token based on a valid refresh token", func(t *testing.T) {
+		refreshRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/refresh", http.NoBody)
 
-		// make a request to the login endpoint to be given our token data, refresh and access
-		loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
-		loginRequest.Header.Set("Content-Type", "application/json")
-
-		loginResponse := httptest.NewRecorder()
-
-		apiCfg.postAPILogin(loginResponse, loginRequest)
-
-		loginGot := APIUsersResponse{}
-
-		err := json.NewDecoder(loginResponse.Body).Decode(&loginGot)
-
-		if err != nil {
-			t.Errorf("could not parse login request")
-		}
-
-		// use our refresh token to be given a new access token
-		refreshRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", http.NoBody)
-
-		buildHeader := fmt.Sprintf("Bearer %s", loginGot.RefreshToken)
+		buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
 		refreshRequest.Header.Set("Authorization", buildHeader)
 
 		refreshResponse := httptest.NewRecorder()
@@ -440,26 +446,16 @@ func TestPutUser(t *testing.T) {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	// login user endpoint
-	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
-	loginRequest.Header.Set("Content-Type", "application/json")
-
-	loginResponse := httptest.NewRecorder()
-
-	apiCfg.postAPILogin(loginResponse, loginRequest)
-
-	loginGot := APIUsersResponse{}
-
-	err = json.NewDecoder(loginResponse.Body).Decode(&loginGot)
+	userOne, err := loginUserOne(&apiCfg)
 
 	if err != nil {
-		t.Errorf("could not parse login request")
+		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
 	t.Run("test user can be updated via the put user endpoint", func(t *testing.T) {
 		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(userOneUpdatedPassword))
 
-		buildHeader := fmt.Sprintf("Bearer %s", loginGot.RefreshToken)
+		buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
 		putUserRequest.Header.Set("Authorization", buildHeader)
 
 		putUserResponse := httptest.NewRecorder()
