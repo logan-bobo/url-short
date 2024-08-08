@@ -52,11 +52,11 @@ func resetDB(db *sql.DB) error {
 	return nil
 }
 
-func setupUserOne(apiCfg *apiConfig) (*bytes.Buffer, error) {
+func setupUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 
 	if err != nil {
-		return new(bytes.Buffer), err
+		return APIUsersResponse{}, err
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -65,7 +65,15 @@ func setupUserOne(apiCfg *apiConfig) (*bytes.Buffer, error) {
 
 	apiCfg.postAPIUsers(response, request)
 
-	return response.Body, err
+	got := APIUsersResponse{}
+
+	err = json.NewDecoder(response.Body).Decode(&got)
+
+	if err != nil {
+		return APIUsersResponse{}, err
+	}
+
+	return got, nil
 }
 
 func loginUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
@@ -136,22 +144,14 @@ func TestPostUser(t *testing.T) {
 	}
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		response, err := setupUserOne(&apiCfg)
+		userOne, err := setupUserOne(&apiCfg)
 
 		if err != nil {
-			t.Errorf("can not create user due to error %q", err)
+			t.Errorf("unable to setup user one due to err %q", err)
 		}
 
-		got := APIUsersResponse{}
-
-		err = json.NewDecoder(response).Decode(&got)
-
-		if err != nil {
-			t.Errorf("unable to parse response %q into %q", response, got)
-		}
-
-		if got.Email != "test@mail.com" {
-			t.Errorf("unexpected email in response, got %q, wanted %q", got.Email, "test@mail.com")
+		if userOne.Email != "test@mail.com" {
+			t.Errorf("unexpected email in response, got %q, wanted %q", userOne.Email, "test@mail.com")
 		}
 	})
 
