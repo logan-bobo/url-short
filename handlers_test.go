@@ -24,6 +24,8 @@ var (
 	userOneBadPassword     = []byte(`{"email": "test@mail.com", "password": "testerrrrr"}`)
 	userBadInput           = []byte(`{"gmail":"test@mail.com", "auth": "test", "extra_data": "data"}`)
 	userBadEmail           = []byte(`{"email": "test1mail.com", "password": "test"}`)
+
+	longUrl = []byte(`{"long_url":"www.google.com"}`)
 )
 
 func resetDB(db *sql.DB) error {
@@ -460,7 +462,7 @@ func TestPutUser(t *testing.T) {
 
 		putUserResponse := httptest.NewRecorder()
 
-		user, err := dbQueries.SelectUser(putUserRequest.Context(), "test@mail.com")
+		user, err := dbQueries.SelectUser(putUserRequest.Context(), userOne.Email)
 
 		if err != nil {
 			t.Error("could not find user that was expected to exist")
@@ -480,7 +482,7 @@ func TestPutUser(t *testing.T) {
 			t.Errorf("did not get expected email and ID on post user request")
 		}
 
-		userPostUpdate, err := dbQueries.SelectUser(putUserRequest.Context(), "test@mail.com")
+		userPostUpdate, err := dbQueries.SelectUser(putUserRequest.Context(), userOne.Email)
 
 		if err != nil {
 			t.Error("could not get user post password change")
@@ -490,6 +492,79 @@ func TestPutUser(t *testing.T) {
 
 		if err != nil {
 			t.Errorf("hashed password did not match new password got error %q", err)
+		}
+	})
+}
+
+func TestPostLongURL(t *testing.T) {
+	dbURL := os.Getenv("PG_CONN")
+	db, err := sql.Open("postgres", dbURL)
+
+	if err != nil {
+		t.Errorf("can not open database connection")
+	}
+
+	defer db.Close()
+
+	err = resetDB(db)
+
+	if err != nil {
+		t.Errorf("could not resetDB %q", err)
+	}
+
+	dbQueries := database.New(db)
+
+	apiCfg := apiConfig{
+		DB: dbQueries,
+	}
+
+	_, err = setupUserOne(&apiCfg)
+
+	if err != nil {
+		t.Errorf("can not set up user for test case with err %q", err)
+	}
+
+	userOne, err := loginUserOne(&apiCfg)
+
+	if err != nil {
+		t.Errorf("can not login user one for test case with err %q", err)
+	}
+
+	t.Run("test user can create short URL based on long", func(t *testing.T) {
+		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(longUrl))
+
+		buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
+		postLongURLRequest.Header.Set("Authorization", buildHeader)
+
+		response := httptest.NewRecorder()
+
+		user, err := dbQueries.SelectUser(postLongURLRequest.Context(), userOne.Email)
+
+		if err != nil {
+			t.Error("could not find user that was expected to exist")
+		}
+
+		// As there are no hashes in the database there is no chance of a collision
+		// the first hash we generate here and the hash in the call to the handler will
+		// always be the same so we compare the two
+		hash, err := hashCollisionDetection(apiCfg.DB, "www.google.com", 1, postLongURLRequest.Context())
+
+		if err != nil {
+			t.Errorf("could not generate hash err %q", err)
+		}
+
+		apiCfg.postLongURL(response, postLongURLRequest, user)
+
+		gotPutLongURL := LongURLResponse{}
+
+		err = json.NewDecoder(response.Body).Decode(&gotPutLongURL)
+
+		if err != nil {
+			t.Errorf("could not decode request err %q", err)
+		}
+
+		if gotPutLongURL.ShortURL == hash {
+			t.Errorf("hash did not match")
 		}
 	})
 }
