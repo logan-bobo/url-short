@@ -1,6 +1,6 @@
 module url-short
 
-go 1.22.4
+go 1.22.6
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
