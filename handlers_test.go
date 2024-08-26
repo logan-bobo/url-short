@@ -6,15 +6,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-	"fmt"
 
 	"github.com/pressly/goose/v3"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/database"
 )
@@ -575,7 +575,7 @@ func TestGetShortURL(t *testing.T) {
 	db, err := sql.Open("postgres", dbURL)
 	rdbURL := os.Getenv("RDB_CONN")
 
-	if err != nil { 
+	if err != nil {
 		t.Errorf("can not open database connection")
 	}
 
@@ -600,8 +600,8 @@ func TestGetShortURL(t *testing.T) {
 	defer redisClient.Close()
 
 	apiCfg := apiConfig{
-		DB:        dbQueries,
-		RDB:       redisClient,
+		DB:  dbQueries,
+		RDB: redisClient,
 	}
 
 	_, err = setupUserOne(&apiCfg)
@@ -617,8 +617,8 @@ func TestGetShortURL(t *testing.T) {
 	}
 
 	postLongURLRequest := httptest.NewRequest(
-		http.MethodPost, 
-		"/api/v1/data/shorten", 
+		http.MethodPost,
+		"/api/v1/data/shorten",
 		bytes.NewBuffer(longUrl),
 	)
 
@@ -639,12 +639,12 @@ func TestGetShortURL(t *testing.T) {
 
 	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
 
-	t.Run("test short url redirects to a long URL", func(t *testing.T){
+	t.Run("test short url redirects to a long URL", func(t *testing.T) {
 		getShortURLRequest := httptest.NewRequest(
 			http.MethodGet,
 			fmt.Sprintf("/api/v1/%s", gotPutLongURL.ShortURL),
 			http.NoBody,
-		)	
+		)
 
 		getShortURLRequest.SetPathValue("shortUrl", gotPutLongURL.ShortURL)
 
@@ -656,8 +656,8 @@ func TestGetShortURL(t *testing.T) {
 
 		if redirectLocation != "https://www.google.com" {
 			t.Errorf(
-				"incorrect redirect to longURL got %q wanted %q", 
-				redirectLocation, 
+				"incorrect redirect to longURL got %q wanted %q",
+				redirectLocation,
 				"https://www.google.com",
 			)
 		}
