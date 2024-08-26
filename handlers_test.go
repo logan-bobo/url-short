@@ -6,14 +6,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"fmt"
 
 	"github.com/pressly/goose/v3"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/redis/go-redis/v9"
 
 	"url-short/internal/database"
 )
@@ -25,7 +26,7 @@ var (
 	userBadInput           = []byte(`{"gmail":"test@mail.com", "auth": "test", "extra_data": "data"}`)
 	userBadEmail           = []byte(`{"email": "test1mail.com", "password": "test"}`)
 
-	longUrl = []byte(`{"long_url":"www.google.com"}`)
+	longUrl = []byte(`{"long_url":"https://www.google.com"}`)
 )
 
 func resetDB(db *sql.DB) error {
@@ -565,6 +566,100 @@ func TestPostLongURL(t *testing.T) {
 
 		if gotPutLongURL.ShortURL == hash {
 			t.Errorf("hash did not match")
+		}
+	})
+}
+
+func TestGetShortURL(t *testing.T) {
+	dbURL := os.Getenv("PG_CONN")
+	db, err := sql.Open("postgres", dbURL)
+	rdbURL := os.Getenv("RDB_CONN")
+
+	if err != nil { 
+		t.Errorf("can not open database connection")
+	}
+
+	defer db.Close()
+
+	err = resetDB(db)
+
+	if err != nil {
+		t.Errorf("could not resetDB %q", err)
+	}
+
+	dbQueries := database.New(db)
+
+	opt, err := redis.ParseURL(rdbURL)
+
+	if err != nil {
+		t.Errorf("oculd not parse reddis connection")
+	}
+
+	redisClient := redis.NewClient(opt)
+
+	defer redisClient.Close()
+
+	apiCfg := apiConfig{
+		DB:        dbQueries,
+		RDB:       redisClient,
+	}
+
+	_, err = setupUserOne(&apiCfg)
+
+	if err != nil {
+		t.Errorf("can not set up user for test case with err %q", err)
+	}
+
+	userOne, err := loginUserOne(&apiCfg)
+
+	if err != nil {
+		t.Errorf("can not login user one for test case with err %q", err)
+	}
+
+	postLongURLRequest := httptest.NewRequest(
+		http.MethodPost, 
+		"/api/v1/data/shorten", 
+		bytes.NewBuffer(longUrl),
+	)
+
+	buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
+	postLongURLRequest.Header.Set("Authorization", buildHeader)
+
+	postURLResponse := httptest.NewRecorder()
+
+	user, err := dbQueries.SelectUser(postLongURLRequest.Context(), userOne.Email)
+
+	if err != nil {
+		t.Error("could not find user that was expected to exist")
+	}
+
+	apiCfg.postLongURL(postURLResponse, postLongURLRequest, user)
+
+	gotPutLongURL := LongURLResponse{}
+
+	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
+
+	t.Run("test short url redirects to a long URL", func(t *testing.T){
+		getShortURLRequest := httptest.NewRequest(
+			http.MethodGet,
+			fmt.Sprintf("/api/v1/%s", gotPutLongURL.ShortURL),
+			http.NoBody,
+		)	
+
+		getShortURLRequest.SetPathValue("shortUrl", gotPutLongURL.ShortURL)
+
+		getShortURLResponse := httptest.NewRecorder()
+
+		apiCfg.getShortURL(getShortURLResponse, getShortURLRequest)
+
+		redirectLocation := getShortURLResponse.Result().Header.Get("Location")
+
+		if redirectLocation != "https://www.google.com" {
+			t.Errorf(
+				"incorrect redirect to longURL got %q wanted %q", 
+				redirectLocation, 
+				"https://www.google.com",
+			)
 		}
 	})
 }
