@@ -637,7 +637,7 @@ func TestGetShortURL(t *testing.T) {
 
 	gotPutLongURL := LongURLResponse{}
 
-	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
+	_ = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
 
 	t.Run("test short url redirects to a long URL", func(t *testing.T) {
 		getShortURLRequest := httptest.NewRequest(
