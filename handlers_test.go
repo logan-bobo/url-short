@@ -98,6 +98,37 @@ func loginUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
 	return loginGot, nil
 }
 
+func setUpDummyShortURL(apiCfg *apiConfig, userResponse APIUsersResponse) (LongURLResponse, error) {
+	postLongURLRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/data/shorten",
+		bytes.NewBuffer(longUrl),
+	)
+
+	buildHeader := fmt.Sprintf("Bearer %s", userResponse.RefreshToken)
+	postLongURLRequest.Header.Set("Authorization", buildHeader)
+
+	postURLResponse := httptest.NewRecorder()
+
+	user, err := apiCfg.DB.SelectUser(postLongURLRequest.Context(), userResponse.Email)
+
+	if err != nil {
+		return LongURLResponse{}, err
+	}
+
+	apiCfg.postLongURL(postURLResponse, postLongURLRequest, user)
+
+	gotPutLongURL := LongURLResponse{}
+
+	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
+
+	if err != nil {
+		return LongURLResponse{}, err
+	}
+
+	return gotPutLongURL, nil
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	t.Run("test healthz endpoint", func(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, "/api/v1/healthz", nil)
@@ -616,37 +647,20 @@ func TestGetShortURL(t *testing.T) {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	postLongURLRequest := httptest.NewRequest(
-		http.MethodPost,
-		"/api/v1/data/shorten",
-		bytes.NewBuffer(longUrl),
-	)
-
-	buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
-	postLongURLRequest.Header.Set("Authorization", buildHeader)
-
-	postURLResponse := httptest.NewRecorder()
-
-	user, err := dbQueries.SelectUser(postLongURLRequest.Context(), userOne.Email)
+	dummyShortURL, err := setUpDummyShortURL(&apiCfg, userOne)
 
 	if err != nil {
-		t.Error("could not find user that was expected to exist")
+		t.Errorf("can not setup dummy short URL with err %q", err)
 	}
-
-	apiCfg.postLongURL(postURLResponse, postLongURLRequest, user)
-
-	gotPutLongURL := LongURLResponse{}
-
-	_ = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
 
 	t.Run("test short url redirects to a long URL", func(t *testing.T) {
 		getShortURLRequest := httptest.NewRequest(
 			http.MethodGet,
-			fmt.Sprintf("/api/v1/%s", gotPutLongURL.ShortURL),
+			fmt.Sprintf("/api/v1/%s", dummyShortURL.ShortURL),
 			http.NoBody,
 		)
 
-		getShortURLRequest.SetPathValue("shortUrl", gotPutLongURL.ShortURL)
+		getShortURLRequest.SetPathValue("shortUrl", dummyShortURL.ShortURL)
 
 		getShortURLResponse := httptest.NewRecorder()
 
