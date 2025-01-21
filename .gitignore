@@ -26,3 +26,8 @@ go.work
 
 # binary
 url-short
+
+
+# Added by cargo
+
+/target
