@@ -6,11 +6,11 @@ ARG GO_CI_VER="2.1.2"
 RUN apk update
 RUN apk upgrade
 
-FROM base AS builder
-
 RUN apk add --no-cache \
     --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community \
     go=${GO_VER}
+
+FROM base AS builder
 
 WORKDIR /build
 
@@ -19,8 +19,6 @@ ADD . /build
 RUN go build -o main .
 
 FROM base AS tester
-
-RUN apk add --update go=${GO_VER}
 
 RUN wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v${GO_CI_VER}
 
