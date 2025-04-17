@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/mail"
 	"net/url"
 	"strconv"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/database"
+	"url-short/internal/domain/user"
 )
 
 type apiConfig struct {
@@ -251,33 +251,18 @@ func (apiCfg *apiConfig) postAPIUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.Email == "" || payload.Password == "" {
-		respondWithError(w, http.StatusBadRequest, "incorrect parameters for user creation")
-		return
-	}
-
-	_, err = mail.ParseAddress(payload.Email)
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid email address")
-		return
-	}
-
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+	domainUser, err := user.NewUser(payload.Email, payload.Password)
 
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, "bad password supplied from client")
-		return
+		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
 
-	now := time.Now()
-
 	user, err := apiCfg.DB.CreateUser(r.Context(), database.CreateUserParams{
-		Email:     payload.Email,
-		Password:  string(passwordHash),
-		CreatedAt: now,
-		UpdatedAt: now,
+		Email:     domainUser.Email().Address,
+		Password:  domainUser.PasswordHash(),
+		CreatedAt: domainUser.CreatedAt(),
+		UpdatedAt: domainUser.UpdatedAt(),
 	})
 
 	if err != nil {
