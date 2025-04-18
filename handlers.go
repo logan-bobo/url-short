@@ -10,7 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"url-short/internal/database"
-	"url-short/internal/domain/user"
 )
 
 type apiConfig struct {
@@ -227,39 +226,5 @@ func (apiCfg *apiConfig) putShortURL(w http.ResponseWriter, r *http.Request, use
 	respondWithJSON(w, http.StatusOK, ShortURLUpdateResponse{
 		LongURL:  payload.LongURL,
 		ShortURL: query,
-	})
-}
-
-func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, authUser database.User) {
-	payload := APIUserRequest{}
-
-	err := json.NewDecoder(r.Body).Decode(&payload)
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "incorrect parameters for user update request")
-		return
-	}
-
-	domainUser, err := user.NewUser(payload.Email, payload.Password)
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, err.Error())
-	}
-	domainUser.SetID(authUser.ID)
-
-	err = apiCfg.DB.UpdateUser(r.Context(), database.UpdateUserParams{
-		Email:     domainUser.Email(),
-		Password:  domainUser.PasswordHash(),
-		ID:        domainUser.ID(),
-		UpdatedAt: time.Now(),
-	})
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not update user in database")
-	}
-
-	respondWithJSON(w, http.StatusOK, APIUserResponseNoToken{
-		Email: payload.Email,
-		ID:    domainUser.ID(),
 	})
 }

@@ -214,3 +214,47 @@ func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Reques
 		AccessToken: signedToken,
 	})
 }
+
+type UpdateUserHTTPRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"Password"`
+}
+
+type UpdateUserHTTPResponse struct {
+	ID    int32  `json:"id"`
+	Email string `json:"email"`
+}
+
+func (handler *handler) UpdateUser(w http.ResponseWriter, r *http.Request, authUser database.User) {
+	payload := UpdateUserHTTPRequest{}
+
+	err := json.NewDecoder(r.Body).Decode(&payload)
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusBadRequest, "incorrect parameters for user update request")
+		return
+	}
+
+	domainUser, err := user.NewUser(payload.Email, payload.Password)
+	if err != nil {
+		log.Println(err)
+		helper.RespondWithError(w, http.StatusBadRequest, err.Error())
+	}
+	domainUser.SetID(authUser.ID)
+
+	err = handler.apiCfg.DB.UpdateUser(r.Context(), database.UpdateUserParams{
+		Email:     domainUser.Email(),
+		Password:  domainUser.PasswordHash(),
+		ID:        domainUser.ID(),
+		UpdatedAt: time.Now(),
+	})
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusInternalServerError, "could not update user in database")
+	}
+
+	helper.RespondWithJSON(w, http.StatusOK, UpdateUserHTTPResponse{
+		Email: payload.Email,
+		ID:    domainUser.ID(),
+	})
+}
