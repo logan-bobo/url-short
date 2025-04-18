@@ -240,43 +240,6 @@ func (apiCfg *apiConfig) putShortURL(w http.ResponseWriter, r *http.Request, use
 	})
 }
 
-func (apiCfg *apiConfig) postAPIUsers(w http.ResponseWriter, r *http.Request) {
-	payload := APIUserRequest{}
-
-	err := json.NewDecoder(r.Body).Decode(&payload)
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, "could not parse request")
-		return
-	}
-
-	domainUser, err := user.NewUser(payload.Email, payload.Password)
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	user, err := apiCfg.DB.CreateUser(r.Context(), database.CreateUserParams{
-		Email:     domainUser.Email(),
-		Password:  domainUser.PasswordHash(),
-		CreatedAt: domainUser.CreatedAt(),
-		UpdatedAt: domainUser.UpdatedAt(),
-	})
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not create user in database")
-	}
-
-	respondWithJSON(w, http.StatusCreated, APIUserResponseNoToken{
-		ID:    user.ID,
-		Email: user.Email,
-	})
-}
-
 func (apiCfg *apiConfig) postAPILogin(w http.ResponseWriter, r *http.Request) {
 	payload := APIUserRequest{}
 
