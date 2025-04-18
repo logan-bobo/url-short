@@ -389,21 +389,19 @@ func TestRefreshEndpoint(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := apiConfig{
+	apiCfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
-	userAPICfg := api.APIConfig{
-		DB: dbQueries,
-	}
+	userHandler := users.NewUserHandler(&apiCfg)
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&userAPICfg)
+	userOne, err := loginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -417,9 +415,9 @@ func TestRefreshEndpoint(t *testing.T) {
 
 		refreshResponse := httptest.NewRecorder()
 
-		apiCfg.postAPIRefresh(refreshResponse, refreshRequest)
+		userHandler.RefreshAccessToken(refreshResponse, refreshRequest)
 
-		refreshGot := APIUsersRefreshResponse{}
+		refreshGot := users.RefreshAccessTokenHTTPResponse{}
 
 		err = json.NewDecoder(refreshResponse.Body).Decode(&refreshGot)
 
@@ -427,8 +425,8 @@ func TestRefreshEndpoint(t *testing.T) {
 			t.Error("could not decode refreshResponse")
 		}
 
-		if refreshGot.Token == "" {
-			t.Errorf("no token was returned from refresh endpoint got %q", refreshGot.Token)
+		if refreshGot.AccessToken == "" {
+			t.Errorf("no token was returned from refresh endpoint got %q", refreshGot.AccessToken)
 		}
 	})
 }

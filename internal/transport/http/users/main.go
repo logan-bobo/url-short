@@ -16,6 +16,7 @@ import (
 	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
+	"url-short/internal/transport/http/auth"
 	"url-short/internal/transport/http/helper"
 )
 
@@ -165,5 +166,51 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        signedToken,
 		RefreshToken: refreshToken,
+	})
+}
+
+type RefreshAccessTokenHTTPResponse struct {
+	// TODO: getter!
+	AccessToken string `json:"token"`
+}
+
+func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
+	requestToken, err := auth.ExtractAuthTokenFromRequest(r)
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	user, err := handler.apiCfg.DB.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusUnauthorized, "can not refresh token no user found")
+		return
+	}
+
+	if time.Now().After(user.RefreshTokenRevokeDate.Time) {
+		helper.RespondWithError(w, http.StatusUnauthorized, "refresh token expired, please login again")
+		return
+	}
+
+	registeredClaims := jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Issuer:    "url-short-auth",
+		Subject:   strconv.Itoa(int(user.ID)),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
+
+	signedToken, err := token.SignedString([]byte(handler.apiCfg.JWTSecret))
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusInternalServerError, "can not create JWT")
+		return
+	}
+
+	helper.RespondWithJSON(w, http.StatusCreated, RefreshAccessTokenHTTPResponse{
+		AccessToken: signedToken,
 	})
 }
