@@ -1,9 +1,7 @@
 package main
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -13,7 +11,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
@@ -237,86 +234,6 @@ func (apiCfg *apiConfig) putShortURL(w http.ResponseWriter, r *http.Request, use
 	respondWithJSON(w, http.StatusOK, ShortURLUpdateResponse{
 		LongURL:  payload.LongURL,
 		ShortURL: query,
-	})
-}
-
-func (apiCfg *apiConfig) postAPILogin(w http.ResponseWriter, r *http.Request) {
-	payload := APIUserRequest{}
-
-	err := json.NewDecoder(r.Body).Decode(&payload)
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "could not parse request")
-		return
-	}
-
-	if payload.Email == "" || payload.Password == "" {
-		respondWithError(w, http.StatusBadRequest, "invalid parameters for user login")
-	}
-
-	// This should all be hidden behind a service and data access layer
-	user, err := apiCfg.DB.SelectUser(r.Context(), payload.Email)
-
-	if err == sql.ErrNoRows {
-		respondWithError(w, http.StatusNotFound, "could not find user")
-		return
-	}
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "database error")
-		return
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password))
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid password")
-		return
-	}
-
-	registeredClaims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "url-short-auth",
-		Subject:   strconv.Itoa(int(user.ID)),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
-
-	signedToken, err := token.SignedString([]byte(apiCfg.JWTSecret))
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "can not create JWT")
-		return
-	}
-
-	byteSlice := make([]byte, 32)
-	_, err = rand.Read(byteSlice)
-	refreshToken := hex.EncodeToString(byteSlice)
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "can not generate refresh token")
-		return
-	}
-
-	err = apiCfg.DB.UserTokenRefresh(r.Context(), database.UserTokenRefreshParams{
-		RefreshToken:           sql.NullString{String: refreshToken, Valid: true},
-		RefreshTokenRevokeDate: sql.NullTime{Time: time.Now().Add(60 * (24 * time.Hour)), Valid: true},
-		ID:                     user.ID,
-	})
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "can not update user with refresh token")
-		return
-	}
-
-	respondWithJSON(w, http.StatusFound, APIUsersResponse{
-		ID:           user.ID,
-		Email:        user.Email,
-		Token:        signedToken,
-		RefreshToken: refreshToken,
 	})
 }
 

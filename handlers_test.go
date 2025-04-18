@@ -82,13 +82,14 @@ func setupUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
 	return got, nil
 }
 
-func loginUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
+func loginUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
 	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 	loginRequest.Header.Set("Content-Type", "application/json")
 
 	loginResponse := httptest.NewRecorder()
 
-	apiCfg.postAPILogin(loginResponse, loginRequest)
+	userHandler := users.NewUserHandler(apiCfg)
+	userHandler.LoginUser(loginResponse, loginRequest)
 
 	loginGot := APIUsersResponse{}
 
@@ -270,15 +271,13 @@ func TestPostLogin(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := apiConfig{
+	apiCfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
-	userAPICfg := api.APIConfig{
-		DB: dbQueries,
-	}
+	userHandler := users.NewUserHandler(&apiCfg)
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
@@ -290,7 +289,7 @@ func TestPostLogin(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPILogin(response, request)
+		userHandler.LoginUser(response, request)
 
 		got := errorResponse{}
 
@@ -312,7 +311,7 @@ func TestPostLogin(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPILogin(response, request)
+		userHandler.LoginUser(response, request)
 
 		got := errorResponse{}
 
@@ -334,7 +333,7 @@ func TestPostLogin(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPILogin(response, request)
+		userHandler.LoginUser(response, request)
 
 		got := errorResponse{}
 
@@ -356,7 +355,7 @@ func TestPostLogin(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPILogin(response, request)
+		userHandler.LoginUser(response, request)
 
 		got := APIUsersResponse{}
 
@@ -404,7 +403,7 @@ func TestRefreshEndpoint(t *testing.T) {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := loginUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -466,7 +465,7 @@ func TestPutUser(t *testing.T) {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := loginUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -546,7 +545,7 @@ func TestPostLongURL(t *testing.T) {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := loginUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -636,7 +635,7 @@ func TestGetShortURL(t *testing.T) {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := loginUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)

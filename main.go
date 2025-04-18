@@ -88,7 +88,7 @@ func main() {
 	)
 	mux.HandleFunc(
 		"POST /api/v1/login",
-		apiCfg.postAPILogin,
+		userHandler.LoginUser,
 	)
 	mux.HandleFunc(
 		"POST /api/v1/refresh",
