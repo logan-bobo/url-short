@@ -16,7 +16,9 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
+	"url-short/internal/api"
 	"url-short/internal/database"
+	"url-short/internal/transport/http/users"
 )
 
 var (
@@ -55,7 +57,7 @@ func resetDB(db *sql.DB) error {
 	return nil
 }
 
-func setupUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
+func setupUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 
 	if err != nil {
@@ -66,7 +68,8 @@ func setupUserOne(apiCfg *apiConfig) (APIUsersResponse, error) {
 
 	response := httptest.NewRecorder()
 
-	apiCfg.postAPIUsers(response, request)
+	userHandler := users.NewUserHandler(apiCfg)
+	userHandler.CreateUser(response, request)
 
 	got := APIUsersResponse{}
 
@@ -142,12 +145,14 @@ func TestPostUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := apiConfig{
+	userAPICfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
+	userHandler := users.NewUserHandler(&userAPICfg)
+
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		userOne, err := setupUserOne(&apiCfg)
+		userOne, err := setupUserOne(&userAPICfg)
 
 		if err != nil {
 			t.Errorf("unable to setup user one due to err %q", err)
@@ -164,7 +169,7 @@ func TestPostUser(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPIUsers(response, request)
+		userHandler.CreateUser(response, request)
 
 		got := errorResponse{}
 
@@ -186,7 +191,7 @@ func TestPostUser(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPIUsers(response, request)
+		userHandler.CreateUser(response, request)
 
 		got := errorResponse{}
 
@@ -209,7 +214,7 @@ func TestPostUser(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPIUsers(response, request)
+		userHandler.CreateUser(response, request)
 
 		got := errorResponse{}
 
@@ -231,7 +236,7 @@ func TestPostUser(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		apiCfg.postAPIUsers(response, request)
+		userHandler.CreateUser(response, request)
 
 		got := errorResponse{}
 		err := json.NewDecoder(response.Body).Decode(&got)
@@ -269,7 +274,11 @@ func TestPostLogin(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	userAPICfg := api.APIConfig{
+		DB: dbQueries,
+	}
+
+	_, err = setupUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
@@ -385,7 +394,11 @@ func TestRefreshEndpoint(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	userAPICfg := api.APIConfig{
+		DB: dbQueries,
+	}
+
+	_, err = setupUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
@@ -443,7 +456,11 @@ func TestPutUser(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	userAPICfg := api.APIConfig{
+		DB: dbQueries,
+	}
+
+	_, err = setupUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
@@ -519,7 +536,11 @@ func TestPostLongURL(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	userAPICfg := api.APIConfig{
+		DB: dbQueries,
+	}
+
+	_, err = setupUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
@@ -604,7 +625,12 @@ func TestGetShortURL(t *testing.T) {
 		RDB: redisClient,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	userAPICfg := api.APIConfig{
+		DB:    dbQueries,
+		Cache: redisClient,
+	}
+
+	_, err = setupUserOne(&userAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)

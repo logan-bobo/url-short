@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 
-	"url-short/internal/database"
-
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
+
+	"url-short/internal/api"
+	"url-short/internal/database"
+	"url-short/internal/transport/http/users"
 )
 
 func main() {
@@ -41,11 +43,18 @@ func main() {
 
 	redisClient := redis.NewClient(opt)
 
+	// old api config to support old endpoints
+	// removed as part of the migration
 	apiCfg := apiConfig{
 		DB:        dbQueries,
 		RDB:       redisClient,
 		JWTSecret: jwtSecret,
 	}
+
+	// allow us to only refactor the user endpoints for now
+	userAPICfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
+
+	userHandler := users.NewUserHandler(userAPICfg)
 
 	// utility endpoints
 	mux.HandleFunc("GET /api/v1/healthz", apiCfg.healthz)
@@ -71,7 +80,7 @@ func main() {
 	// user management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/users",
-		apiCfg.postAPIUsers,
+		userHandler.CreateUser,
 	)
 	mux.HandleFunc(
 		"PUT /api/v1/users",
