@@ -260,7 +260,7 @@ func (apiCfg *apiConfig) postAPIUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := apiCfg.DB.CreateUser(r.Context(), database.CreateUserParams{
-		Email:     domainUser.Email().Address,
+		Email:     domainUser.Email(),
 		Password:  domainUser.PasswordHash(),
 		CreatedAt: domainUser.CreatedAt(),
 		UpdatedAt: domainUser.UpdatedAt(),
@@ -291,6 +291,7 @@ func (apiCfg *apiConfig) postAPILogin(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid parameters for user login")
 	}
 
+	// This should all be hidden behind a service and data access layer
 	user, err := apiCfg.DB.SelectUser(r.Context(), payload.Email)
 
 	if err == sql.ErrNoRows {
@@ -356,7 +357,7 @@ func (apiCfg *apiConfig) postAPILogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, user database.User) {
+func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, authUser database.User) {
 	payload := APIUserRequest{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
@@ -366,18 +367,17 @@ func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-
+	domainUser, err := user.NewUser(payload.Email, payload.Password)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, "bad password supplied from client")
-		return
+		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
+	domainUser.SetID(authUser.ID)
 
 	err = apiCfg.DB.UpdateUser(r.Context(), database.UpdateUserParams{
-		Email:     payload.Email,
-		Password:  string(passwordHash),
-		ID:        user.ID,
+		Email:     domainUser.Email(),
+		Password:  domainUser.PasswordHash(),
+		ID:        domainUser.ID(),
 		UpdatedAt: time.Now(),
 	})
 
@@ -387,7 +387,7 @@ func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, use
 
 	respondWithJSON(w, http.StatusOK, APIUserResponseNoToken{
 		Email: payload.Email,
-		ID:    user.ID,
+		ID:    domainUser.ID(),
 	})
 }
 
@@ -399,6 +399,9 @@ func (apiCfg *apiConfig) postAPIRefresh(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// This should be moved down to a repo layer with a service layer in the middle
+	// the current handler should go API -> Service -> Repo but right now it does not make sense
+	// to move this hanlder to use the user domain. This should however be refactored.
 	user, err := apiCfg.DB.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
 
 	if err != nil {
@@ -411,7 +414,6 @@ func (apiCfg *apiConfig) postAPIRefresh(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// TODO: We do this twice in the codebase, if we do it a third time pull this out to a general JWT issue function
 	registeredClaims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),

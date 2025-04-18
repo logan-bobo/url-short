@@ -55,8 +55,12 @@ func (u *User) ID() int32 {
 	return u.id
 }
 
-func (u *User) Email() mail.Address {
-	return u.email
+func (u *User) SetID(id int32) {
+	u.id = id
+}
+
+func (u *User) Email() string {
+	return u.email.Address
 }
 
 func (u *User) PasswordHash() string {
