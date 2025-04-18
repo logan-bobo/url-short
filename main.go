@@ -11,6 +11,7 @@ import (
 
 	"url-short/internal/api"
 	"url-short/internal/database"
+	"url-short/internal/transport/http/auth"
 	"url-short/internal/transport/http/users"
 )
 
@@ -54,7 +55,8 @@ func main() {
 	// allow us to only refactor the user endpoints for now
 	newAPICfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
 
-	userHandler := users.NewUserHandler(newAPICfg)
+	users := users.NewUserHandler(newAPICfg)
+	auth := auth.NewAuthHandler(newAPICfg)
 
 	// utility endpoints
 	mux.HandleFunc("GET /api/v1/healthz", apiCfg.healthz)
@@ -62,7 +64,7 @@ func main() {
 	// url management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/data/shorten",
-		apiCfg.authenticationMiddleware(apiCfg.postLongURL),
+		auth.AuthenticationMiddleware(apiCfg.postLongURL),
 	)
 	mux.HandleFunc(
 		"GET /api/v1/{shortUrl}",
@@ -70,29 +72,29 @@ func main() {
 	)
 	mux.HandleFunc(
 		"DELETE /api/v1/{shortUrl}",
-		apiCfg.authenticationMiddleware(apiCfg.deleteShortURL),
+		auth.AuthenticationMiddleware(apiCfg.deleteShortURL),
 	)
 	mux.HandleFunc(
 		"PUT /api/v1/{shortUrl}",
-		apiCfg.authenticationMiddleware(apiCfg.putShortURL),
+		auth.AuthenticationMiddleware(apiCfg.putShortURL),
 	)
 
 	// user management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/users",
-		userHandler.CreateUser,
+		users.CreateUser,
 	)
 	mux.HandleFunc(
 		"PUT /api/v1/users",
-		apiCfg.authenticationMiddleware(userHandler.UpdateUser),
+		auth.AuthenticationMiddleware(users.UpdateUser),
 	)
 	mux.HandleFunc(
 		"POST /api/v1/login",
-		userHandler.LoginUser,
+		users.LoginUser,
 	)
 	mux.HandleFunc(
 		"POST /api/v1/refresh",
-		userHandler.RefreshAccessToken,
+		users.RefreshAccessToken,
 	)
 
 	log.Printf("Serving port : %v \n", serverPort)
