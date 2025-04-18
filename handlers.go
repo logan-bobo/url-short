@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -55,52 +54,6 @@ type APIUserResponseNoToken struct {
 func (apiCfg *apiConfig) healthz(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, HealthResponse{
 		Status: "ok",
-	})
-}
-
-func (apiCfg *apiConfig) postLongURL(w http.ResponseWriter, r *http.Request, user database.User) {
-	payload := LongURLRequest{}
-
-	err := json.NewDecoder(r.Body).Decode(&payload)
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "incorrect request fromat")
-		return
-	}
-
-	url, err := url.ParseRequestURI(payload.LongURL)
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, "could not parse request URL")
-		return
-	}
-
-	shortURLHash, err := hashCollisionDetection(apiCfg.DB, url.String(), 1, r.Context())
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not resolve hash collision")
-		return
-	}
-
-	now := time.Now()
-	shortenedURL, err := apiCfg.DB.CreateURL(r.Context(), database.CreateURLParams{
-		LongUrl:   url.String(),
-		ShortUrl:  shortURLHash,
-		CreatedAt: now,
-		UpdatedAt: now,
-		UserID:    user.ID,
-	})
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not create short URL in database")
-		return
-	}
-
-	respondWithJSON(w, http.StatusCreated, LongURLResponse{
-		ShortURL: shortenedURL.ShortUrl,
 	})
 }
 

@@ -18,6 +18,7 @@ import (
 
 	"url-short/internal/api"
 	"url-short/internal/database"
+	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
 
@@ -531,21 +532,23 @@ func TestPostLongURL(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	userAPICfg := api.APIConfig{
+	newAPICfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&newAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&userAPICfg)
+	userOne, err := loginUserOne(&newAPICfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
+
+	urls := shorturls.NewShortUrlHandler(&newAPICfg)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
 		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(longUrl))
@@ -570,7 +573,7 @@ func TestPostLongURL(t *testing.T) {
 			t.Errorf("could not generate hash err %q", err)
 		}
 
-		apiCfg.postLongURL(response, postLongURLRequest, user)
+		urls.CreateLongURL(response, postLongURLRequest, user)
 
 		gotPutLongURL := LongURLResponse{}
 
@@ -637,6 +640,8 @@ func TestGetShortURL(t *testing.T) {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
+	urls := shorturls.NewShortUrlHandler(&userAPICfg)
+
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v1/data/shorten",
@@ -654,7 +659,7 @@ func TestGetShortURL(t *testing.T) {
 		t.Error("could not find user that was expected to exist")
 	}
 
-	apiCfg.postLongURL(postURLResponse, postLongURLRequest, user)
+	urls.CreateLongURL(postURLResponse, postLongURLRequest, user)
 
 	gotPutLongURL := LongURLResponse{}
 
