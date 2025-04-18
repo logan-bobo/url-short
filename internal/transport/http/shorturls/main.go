@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/shortener"
@@ -34,7 +36,7 @@ type CreateShortURLHTTPResponse struct {
 	ShortURL string `json:"short_url"`
 }
 
-func (handler *handler) CreateLongURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
 	payload := CreateShortURLHTTPRequest{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
@@ -100,4 +102,68 @@ func hashCollisionDetection(DB *database.Queries, url string, count int, request
 	count++
 
 	return hashCollisionDetection(DB, url, count, requestContext)
+}
+
+func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
+	query := r.PathValue("shortUrl")
+
+	if query == "" {
+		helper.RespondWithError(w, http.StatusBadRequest, "no short url supplied")
+		return
+	}
+
+	cacheVal, err := handler.apiCfg.Cache.Get(r.Context(), query).Result()
+
+	switch {
+	case err == redis.Nil:
+		log.Printf("cache miss, key %s does not exists, writing to redis", query)
+
+		row, err := handler.apiCfg.DB.SelectURL(r.Context(), query)
+
+		if err != nil {
+			log.Println(err)
+			helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+			return
+		}
+
+		err = handler.apiCfg.Cache.Set(r.Context(), query, row.LongUrl, (time.Hour * 1)).Err()
+
+		if err != nil {
+			log.Printf("could not write to redis cache %s", err)
+		}
+
+		http.Redirect(w, r, row.LongUrl, http.StatusMovedPermanently)
+		return
+
+	case err != nil:
+		log.Println(err)
+
+		row, err := handler.apiCfg.DB.SelectURL(r.Context(), query)
+
+		if err != nil {
+			log.Println(err)
+			helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+			return
+		}
+
+		http.Redirect(w, r, row.LongUrl, http.StatusMovedPermanently)
+		return
+
+	case cacheVal == "":
+		log.Printf("key %s does not have a value", query)
+
+		row, err := handler.apiCfg.DB.SelectURL(r.Context(), query)
+
+		if err != nil {
+			log.Println(err)
+			helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+			return
+		}
+
+		http.Redirect(w, r, row.LongUrl, http.StatusMovedPermanently)
+		return
+	}
+
+	log.Printf("cache hit for key %s", cacheVal)
+	http.Redirect(w, r, cacheVal, http.StatusMovedPermanently)
 }

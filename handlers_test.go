@@ -573,7 +573,7 @@ func TestPostLongURL(t *testing.T) {
 			t.Errorf("could not generate hash err %q", err)
 		}
 
-		urls.CreateLongURL(response, postLongURLRequest, user)
+		urls.CreateShortURL(response, postLongURLRequest, user)
 
 		gotPutLongURL := LongURLResponse{}
 
@@ -618,29 +618,24 @@ func TestGetShortURL(t *testing.T) {
 
 	defer redisClient.Close()
 
-	apiCfg := apiConfig{
-		DB:  dbQueries,
-		RDB: redisClient,
-	}
-
-	userAPICfg := api.APIConfig{
+	apiCfg := api.APIConfig{
 		DB:    dbQueries,
 		Cache: redisClient,
 	}
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&userAPICfg)
+	userOne, err := loginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := shorturls.NewShortUrlHandler(&userAPICfg)
+	urls := shorturls.NewShortUrlHandler(&apiCfg)
 
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -659,7 +654,7 @@ func TestGetShortURL(t *testing.T) {
 		t.Error("could not find user that was expected to exist")
 	}
 
-	urls.CreateLongURL(postURLResponse, postLongURLRequest, user)
+	urls.CreateShortURL(postURLResponse, postLongURLRequest, user)
 
 	gotPutLongURL := LongURLResponse{}
 
@@ -676,7 +671,7 @@ func TestGetShortURL(t *testing.T) {
 
 		getShortURLResponse := httptest.NewRecorder()
 
-		apiCfg.getShortURL(getShortURLResponse, getShortURLRequest)
+		urls.GetShortURL(getShortURLResponse, getShortURLRequest)
 
 		redirectLocation := getShortURLResponse.Result().Header.Get("Location")
 

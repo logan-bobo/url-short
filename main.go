@@ -66,11 +66,11 @@ func main() {
 	// url management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/data/shorten",
-		auth.AuthenticationMiddleware(urls.CreateLongURL),
+		auth.AuthenticationMiddleware(urls.CreateShortURL),
 	)
 	mux.HandleFunc(
 		"GET /api/v1/{shortUrl}",
-		apiCfg.getShortURL,
+		urls.GetShortURL,
 	)
 	mux.HandleFunc(
 		"DELETE /api/v1/{shortUrl}",
