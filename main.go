@@ -52,9 +52,9 @@ func main() {
 	}
 
 	// allow us to only refactor the user endpoints for now
-	userAPICfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
+	newAPICfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
 
-	userHandler := users.NewUserHandler(userAPICfg)
+	userHandler := users.NewUserHandler(newAPICfg)
 
 	// utility endpoints
 	mux.HandleFunc("GET /api/v1/healthz", apiCfg.healthz)
@@ -92,7 +92,7 @@ func main() {
 	)
 	mux.HandleFunc(
 		"POST /api/v1/refresh",
-		apiCfg.postAPIRefresh,
+		userHandler.RefreshAccessToken,
 	)
 
 	log.Printf("Serving port : %v \n", serverPort)

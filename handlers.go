@@ -1,15 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"net/url"
-	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 
 	"url-short/internal/database"
@@ -49,10 +46,6 @@ type APIUsersResponse struct {
 	Email        string `json:"email"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
-}
-
-type APIUsersRefreshResponse struct {
-	Token string `json:"token"`
 }
 
 type APIUserResponseNoToken struct {
@@ -268,49 +261,5 @@ func (apiCfg *apiConfig) putAPIUsers(w http.ResponseWriter, r *http.Request, aut
 	respondWithJSON(w, http.StatusOK, APIUserResponseNoToken{
 		Email: payload.Email,
 		ID:    domainUser.ID(),
-	})
-}
-
-func (apiCfg *apiConfig) postAPIRefresh(w http.ResponseWriter, r *http.Request) {
-	requestToken, err := extractAuthTokenFromRequest(r)
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// This should be moved down to a repo layer with a service layer in the middle
-	// the current handler should go API -> Service -> Repo but right now it does not make sense
-	// to move this hanlder to use the user domain. This should however be refactored.
-	user, err := apiCfg.DB.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
-
-	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "can not refresh token no user found")
-		return
-	}
-
-	if time.Now().After(user.RefreshTokenRevokeDate.Time) {
-		respondWithError(w, http.StatusUnauthorized, "refresh token expired, please login again")
-		return
-	}
-
-	registeredClaims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "url-short-auth",
-		Subject:   strconv.Itoa(int(user.ID)),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
-
-	signedToken, err := token.SignedString([]byte(apiCfg.JWTSecret))
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "can not create JWT")
-		return
-	}
-
-	respondWithJSON(w, http.StatusCreated, APIUsersRefreshResponse{
-		Token: signedToken,
 	})
 }
