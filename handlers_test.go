@@ -449,21 +449,19 @@ func TestPutUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := apiConfig{
+	apiCfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
-	userAPICfg := api.APIConfig{
-		DB: dbQueries,
-	}
+	userHandler := users.NewUserHandler(&apiCfg)
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&userAPICfg)
+	userOne, err := loginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -483,7 +481,7 @@ func TestPutUser(t *testing.T) {
 			t.Error("could not find user that was expected to exist")
 		}
 
-		apiCfg.putAPIUsers(putUserResponse, putUserRequest, user)
+		userHandler.UpdateUser(putUserResponse, putUserRequest, user)
 
 		gotPUTUser := APIUserResponseNoToken{}
 

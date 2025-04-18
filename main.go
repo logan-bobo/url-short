@@ -84,7 +84,7 @@ func main() {
 	)
 	mux.HandleFunc(
 		"PUT /api/v1/users",
-		apiCfg.authenticationMiddleware(apiCfg.putAPIUsers),
+		apiCfg.authenticationMiddleware(userHandler.UpdateUser),
 	)
 	mux.HandleFunc(
 		"POST /api/v1/login",
