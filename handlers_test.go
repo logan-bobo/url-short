@@ -174,7 +174,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "incorrect parameters for user creation"
+		want := "could not create user: empty email"
 		if got.Error != want {
 			t.Errorf("incorrect error when invalid json used got %q wanted %q", got.Error, want)
 		}
@@ -219,7 +219,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "invalid email address"
+		want := "could not create user: invalid email"
 		if got.Error != want {
 			t.Errorf("incorrect error when passing invalid email address %q wanted %q", got.Error, want)
 		}

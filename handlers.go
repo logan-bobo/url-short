@@ -256,6 +256,7 @@ func (apiCfg *apiConfig) postAPIUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	user, err := apiCfg.DB.CreateUser(r.Context(), database.CreateUserParams{
