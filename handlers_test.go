@@ -18,6 +18,7 @@ import (
 
 	"url-short/internal/api"
 	"url-short/internal/database"
+	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
 
@@ -25,7 +26,7 @@ var (
 	userOne                = []byte(`{"email": "test@mail.com", "password": "test"}`)
 	userOneUpdatedPassword = []byte(`{"email": "test@mail.com", "password":"new-password"}`)
 	userOneBadPassword     = []byte(`{"email": "test@mail.com", "password": "testerrrrr"}`)
-	userBadInput           = []byte(`{"gmail":"test@mail.com", "auth": "test", "extra_data": "data"}`)
+	userBadInput           = []byte(`{"gmail": "test@mail.com", "auth": "test", "extra_data": "data"}`)
 	userBadEmail           = []byte(`{"email": "test1mail.com", "password": "test"}`)
 
 	longUrl = []byte(`{"long_url":"https://www.google.com"}`)
@@ -57,11 +58,11 @@ func resetDB(db *sql.DB) error {
 	return nil
 }
 
-func setupUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
+func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, error) {
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 
 	if err != nil {
-		return APIUsersResponse{}, err
+		return users.CreateUserHTTPResponseBody{}, err
 	}
 
 	request.Header.Set("Content-Type", "application/json")
@@ -71,18 +72,18 @@ func setupUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
 	userHandler := users.NewUserHandler(apiCfg)
 	userHandler.CreateUser(response, request)
 
-	got := APIUsersResponse{}
+	got := users.CreateUserHTTPResponseBody{}
 
 	err = json.NewDecoder(response.Body).Decode(&got)
 
 	if err != nil {
-		return APIUsersResponse{}, err
+		return users.CreateUserHTTPResponseBody{}, err
 	}
 
 	return got, nil
 }
 
-func loginUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
+func loginUserOne(apiCfg *api.APIConfig) (users.LoginUserHTTPResponseBody, error) {
 	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 	loginRequest.Header.Set("Content-Type", "application/json")
 
@@ -91,12 +92,12 @@ func loginUserOne(apiCfg *api.APIConfig) (APIUsersResponse, error) {
 	userHandler := users.NewUserHandler(apiCfg)
 	userHandler.LoginUser(loginResponse, loginRequest)
 
-	loginGot := APIUsersResponse{}
+	loginGot := users.LoginUserHTTPResponseBody{}
 
 	err := json.NewDecoder(loginResponse.Body).Decode(&loginGot)
 
 	if err != nil {
-		return APIUsersResponse{}, err
+		return users.LoginUserHTTPResponseBody{}, err
 	}
 
 	return loginGot, nil
@@ -357,7 +358,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := APIUsersResponse{}
+		got := users.LoginUserHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -417,7 +418,7 @@ func TestRefreshEndpoint(t *testing.T) {
 
 		userHandler.RefreshAccessToken(refreshResponse, refreshRequest)
 
-		refreshGot := users.RefreshAccessTokenHTTPResponse{}
+		refreshGot := users.RefreshAccessTokenHTTPResponseBody{}
 
 		err = json.NewDecoder(refreshResponse.Body).Decode(&refreshGot)
 
@@ -483,7 +484,7 @@ func TestPutUser(t *testing.T) {
 
 		userHandler.UpdateUser(putUserResponse, putUserRequest, user)
 
-		gotPUTUser := APIUserResponseNoToken{}
+		gotPUTUser := users.UpdateUserHTTPResponseBody{}
 
 		err = json.NewDecoder(putUserResponse.Body).Decode(&gotPUTUser)
 
@@ -531,21 +532,23 @@ func TestPostLongURL(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	userAPICfg := api.APIConfig{
+	newAPICfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&newAPICfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&userAPICfg)
+	userOne, err := loginUserOne(&newAPICfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
+
+	urls := shorturls.NewShortUrlHandler(&newAPICfg)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
 		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(longUrl))
@@ -570,9 +573,9 @@ func TestPostLongURL(t *testing.T) {
 			t.Errorf("could not generate hash err %q", err)
 		}
 
-		apiCfg.postLongURL(response, postLongURLRequest, user)
+		urls.CreateShortURL(response, postLongURLRequest, user)
 
-		gotPutLongURL := LongURLResponse{}
+		gotPutLongURL := shorturls.UpdateShortURLHTTPResponse{}
 
 		err = json.NewDecoder(response.Body).Decode(&gotPutLongURL)
 
@@ -615,27 +618,24 @@ func TestGetShortURL(t *testing.T) {
 
 	defer redisClient.Close()
 
-	apiCfg := apiConfig{
-		DB:  dbQueries,
-		RDB: redisClient,
-	}
-
-	userAPICfg := api.APIConfig{
+	apiCfg := api.APIConfig{
 		DB:    dbQueries,
 		Cache: redisClient,
 	}
 
-	_, err = setupUserOne(&userAPICfg)
+	_, err = setupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&userAPICfg)
+	userOne, err := loginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
+
+	urls := shorturls.NewShortUrlHandler(&apiCfg)
 
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -654,9 +654,9 @@ func TestGetShortURL(t *testing.T) {
 		t.Error("could not find user that was expected to exist")
 	}
 
-	apiCfg.postLongURL(postURLResponse, postLongURLRequest, user)
+	urls.CreateShortURL(postURLResponse, postLongURLRequest, user)
 
-	gotPutLongURL := LongURLResponse{}
+	gotPutLongURL := shorturls.UpdateShortURLHTTPResponse{}
 
 	_ = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
 
@@ -671,7 +671,7 @@ func TestGetShortURL(t *testing.T) {
 
 		getShortURLResponse := httptest.NewRecorder()
 
-		apiCfg.getShortURL(getShortURLResponse, getShortURLRequest)
+		urls.GetShortURL(getShortURLResponse, getShortURLRequest)
 
 		redirectLocation := getShortURLResponse.Result().Header.Get("Location")
 

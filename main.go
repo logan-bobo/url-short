@@ -12,6 +12,7 @@ import (
 	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/transport/http/auth"
+	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
 
@@ -57,6 +58,7 @@ func main() {
 
 	users := users.NewUserHandler(newAPICfg)
 	auth := auth.NewAuthHandler(newAPICfg)
+	urls := shorturls.NewShortUrlHandler(newAPICfg)
 
 	// utility endpoints
 	mux.HandleFunc("GET /api/v1/healthz", apiCfg.healthz)
@@ -64,19 +66,19 @@ func main() {
 	// url management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/data/shorten",
-		auth.AuthenticationMiddleware(apiCfg.postLongURL),
+		auth.AuthenticationMiddleware(urls.CreateShortURL),
 	)
 	mux.HandleFunc(
 		"GET /api/v1/{shortUrl}",
-		apiCfg.getShortURL,
+		urls.GetShortURL,
 	)
 	mux.HandleFunc(
 		"DELETE /api/v1/{shortUrl}",
-		auth.AuthenticationMiddleware(apiCfg.deleteShortURL),
+		auth.AuthenticationMiddleware(urls.DeleteShortURL),
 	)
 	mux.HandleFunc(
 		"PUT /api/v1/{shortUrl}",
-		auth.AuthenticationMiddleware(apiCfg.putShortURL),
+		auth.AuthenticationMiddleware(urls.UpdateShortURL),
 	)
 
 	// user management endpoints
