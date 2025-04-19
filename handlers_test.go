@@ -575,7 +575,7 @@ func TestPostLongURL(t *testing.T) {
 
 		urls.CreateShortURL(response, postLongURLRequest, user)
 
-		gotPutLongURL := shorturls.UpdateShortURLHTTPResponse{}
+		gotPutLongURL := shorturls.UpdateShortURLHTTPResponseBody{}
 
 		err = json.NewDecoder(response.Body).Decode(&gotPutLongURL)
 
@@ -656,7 +656,7 @@ func TestGetShortURL(t *testing.T) {
 
 	urls.CreateShortURL(postURLResponse, postLongURLRequest, user)
 
-	gotPutLongURL := shorturls.UpdateShortURLHTTPResponse{}
+	gotPutLongURL := shorturls.UpdateShortURLHTTPResponseBody{}
 
 	_ = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
 

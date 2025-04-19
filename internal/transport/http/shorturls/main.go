@@ -28,16 +28,16 @@ func NewShortUrlHandler(apiConfig *api.APIConfig) *handler {
 	}
 }
 
-type CreateShortURLHTTPRequest struct {
+type CreateShortURLHTTPRequestBody struct {
 	LongURL string `json:"long_url"`
 }
 
-type CreateShortURLHTTPResponse struct {
+type CreateShortURLHTTPResponseBody struct {
 	ShortURL string `json:"short_url"`
 }
 
 func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
-	payload := CreateShortURLHTTPRequest{}
+	payload := CreateShortURLHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
@@ -79,7 +79,7 @@ func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	helper.RespondWithJSON(w, http.StatusCreated, CreateShortURLHTTPResponse{
+	helper.RespondWithJSON(w, http.StatusCreated, CreateShortURLHTTPResponseBody{
 		ShortURL: shortenedURL.ShortUrl,
 	})
 }
@@ -190,11 +190,11 @@ func (handler *handler) DeleteShortURL(w http.ResponseWriter, r *http.Request, u
 	w.WriteHeader(http.StatusOK)
 }
 
-type UpdateShortURLHTTPRequest struct {
+type UpdateShortURLHTTPRequestBody struct {
 	LongURL string `json:"long_url"`
 }
 
-type UpdateShortURLHTTPResponse struct {
+type UpdateShortURLHTTPResponseBody struct {
 	ShortURL string `json:"short_url"`
 	LongURL  string `json:"long_url"`
 }
@@ -207,7 +207,7 @@ func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	payload := UpdateShortURLHTTPRequest{}
+	payload := UpdateShortURLHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
@@ -232,7 +232,7 @@ func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, u
 		log.Println(err)
 	}
 
-	helper.RespondWithJSON(w, http.StatusOK, UpdateShortURLHTTPResponse{
+	helper.RespondWithJSON(w, http.StatusOK, UpdateShortURLHTTPResponseBody{
 		LongURL:  payload.LongURL,
 		ShortURL: query,
 	})
