@@ -41,7 +41,7 @@ func TestRespondWithError(t *testing.T) {
 
 		RespondWithError(response, http.StatusInternalServerError, "stuff is broken")
 
-		wantStruct := errorResponse{}
+		wantStruct := ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&wantStruct)
 
