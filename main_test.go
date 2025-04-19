@@ -19,6 +19,7 @@ import (
 	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/transport/http/health"
+	"url-short/internal/transport/http/helper"
 	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
@@ -172,7 +173,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -194,7 +195,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -217,7 +218,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -239,7 +240,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 		err := json.NewDecoder(response.Body).Decode(&got)
 
 		if err != nil {
@@ -291,7 +292,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -313,7 +314,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -335,7 +336,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := errorResponse{}
+		got := helper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -562,7 +563,7 @@ func TestPostLongURL(t *testing.T) {
 		// As there are no hashes in the database there is no chance of a collision
 		// the first hash we generate here and the hash in the call to the handler will
 		// always be the same so we compare the two
-		hash, err := hashCollisionDetection(apiCfg.DB, "www.google.com", 1, postLongURLRequest.Context())
+		hash, err := shorturls.HashCollisionDetection(apiCfg.DB, "www.google.com", 1, postLongURLRequest.Context())
 
 		if err != nil {
 			t.Errorf("could not generate hash err %q", err)
