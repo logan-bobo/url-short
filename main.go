@@ -12,6 +12,7 @@ import (
 	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/transport/http/auth"
+	"url-short/internal/transport/http/health"
 	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
@@ -45,23 +46,14 @@ func main() {
 
 	redisClient := redis.NewClient(opt)
 
-	// old api config to support old endpoints
-	// removed as part of the migration
-	apiCfg := apiConfig{
-		DB:        dbQueries,
-		RDB:       redisClient,
-		JWTSecret: jwtSecret,
-	}
+	apiCfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
 
-	// allow us to only refactor the user endpoints for now
-	newAPICfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
-
-	users := users.NewUserHandler(newAPICfg)
-	auth := auth.NewAuthHandler(newAPICfg)
-	urls := shorturls.NewShortUrlHandler(newAPICfg)
+	users := users.NewUserHandler(apiCfg)
+	auth := auth.NewAuthHandler(apiCfg)
+	urls := shorturls.NewShortUrlHandler(apiCfg)
 
 	// utility endpoints
-	mux.HandleFunc("GET /api/v1/healthz", apiCfg.healthz)
+	mux.HandleFunc("GET /api/v1/healthz", health.GetHealth)
 
 	// url management endpoints
 	mux.HandleFunc(

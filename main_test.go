@@ -18,6 +18,7 @@ import (
 
 	"url-short/internal/api"
 	"url-short/internal/database"
+	"url-short/internal/transport/http/health"
 	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
@@ -108,11 +109,9 @@ func TestHealthEndpoint(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, "/api/v1/healthz", nil)
 		response := httptest.NewRecorder()
 
-		apiCfg := apiConfig{}
+		health.GetHealth(response, request)
 
-		apiCfg.healthz(response, request)
-
-		got := HealthResponse{}
+		got := health.GetHealthHTTPResponseBody{}
 		err := json.NewDecoder(response.Body).Decode(&got)
 
 		if err != nil {
@@ -528,27 +527,23 @@ func TestPostLongURL(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := apiConfig{
+	apiCfg := api.APIConfig{
 		DB: dbQueries,
 	}
 
-	newAPICfg := api.APIConfig{
-		DB: dbQueries,
-	}
-
-	_, err = setupUserOne(&newAPICfg)
+	_, err = setupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&newAPICfg)
+	userOne, err := loginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := shorturls.NewShortUrlHandler(&newAPICfg)
+	urls := shorturls.NewShortUrlHandler(&apiCfg)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
 		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(longUrl))
