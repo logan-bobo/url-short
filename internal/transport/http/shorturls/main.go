@@ -167,3 +167,73 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	log.Printf("cache hit for key %s", cacheVal)
 	http.Redirect(w, r, cacheVal, http.StatusMovedPermanently)
 }
+
+func (handler *handler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+	query := r.PathValue("shortUrl")
+
+	if query == "" {
+		helper.RespondWithError(w, http.StatusBadRequest, "no short url supplied")
+		return
+	}
+
+	err := handler.apiCfg.DB.DeleteURL(r.Context(), database.DeleteURLParams{
+		UserID:   user.ID,
+		ShortUrl: query,
+	})
+
+	if err != nil {
+		log.Println(err)
+		helper.RespondWithError(w, http.StatusBadRequest, "could not delete short url")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type UpdateShortURLHTTPRequest struct {
+	LongURL string `json:"long_url"`
+}
+
+type UpdateShortURLHTTPResponse struct {
+	ShortURL string `json:"short_url"`
+	LongURL  string `json:"long_url"`
+}
+
+func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+	query := r.PathValue("shortUrl")
+
+	if query == "" {
+		helper.RespondWithError(w, http.StatusBadGateway, "no short url supplied")
+		return
+	}
+
+	payload := UpdateShortURLHTTPRequest{}
+
+	err := json.NewDecoder(r.Body).Decode(&payload)
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusBadRequest, "invalid request body")
+	}
+
+	err = handler.apiCfg.DB.UpdateShortURL(r.Context(), database.UpdateShortURLParams{
+		UserID:   user.ID,
+		ShortUrl: query,
+		LongUrl:  payload.LongURL,
+	})
+
+	if err != nil {
+		helper.RespondWithError(w, http.StatusInternalServerError, "could not update long url")
+		return
+	}
+
+	err = handler.apiCfg.Cache.Set(r.Context(), query, payload.LongURL, (time.Hour * 1)).Err()
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	helper.RespondWithJSON(w, http.StatusOK, UpdateShortURLHTTPResponse{
+		LongURL:  payload.LongURL,
+		ShortURL: query,
+	})
+}

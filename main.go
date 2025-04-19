@@ -74,11 +74,11 @@ func main() {
 	)
 	mux.HandleFunc(
 		"DELETE /api/v1/{shortUrl}",
-		auth.AuthenticationMiddleware(apiCfg.deleteShortURL),
+		auth.AuthenticationMiddleware(urls.DeleteShortURL),
 	)
 	mux.HandleFunc(
 		"PUT /api/v1/{shortUrl}",
-		auth.AuthenticationMiddleware(apiCfg.putShortURL),
+		auth.AuthenticationMiddleware(urls.UpdateShortURL),
 	)
 
 	// user management endpoints

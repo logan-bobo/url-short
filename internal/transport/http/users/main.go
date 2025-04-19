@@ -31,18 +31,18 @@ func NewUserHandler(apiConfig *api.APIConfig) *handler {
 	}
 }
 
-type createUserHTTPRequestBody struct {
+type CreateUserHTTPRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"Password"`
 }
 
-type createUserHTTPResponseBody struct {
+type CreateUserHTTPResponseBody struct {
 	ID    int32  `json:"id"`
 	Email string `json:"email"`
 }
 
 func (handler *handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	payload := &createUserHTTPRequestBody{}
+	payload := &CreateUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
@@ -71,18 +71,18 @@ func (handler *handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		helper.RespondWithError(w, http.StatusInternalServerError, "could not create user in database")
 	}
 
-	helper.RespondWithJSON(w, http.StatusCreated, createUserHTTPResponseBody{
+	helper.RespondWithJSON(w, http.StatusCreated, CreateUserHTTPResponseBody{
 		ID:    user.ID,
 		Email: user.Email,
 	})
 }
 
-type loginUserHTTPRequestBody struct {
+type LoginUserHTTPRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"Password"`
 }
 
-type loginUserHTTPResponseBody struct {
+type LoginUserHTTPResponseBody struct {
 	ID           int32  `json:"id"`
 	Email        string `json:"email"`
 	Token        string `json:"token"`
@@ -90,7 +90,7 @@ type loginUserHTTPResponseBody struct {
 }
 
 func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
-	payload := loginUserHTTPRequestBody{}
+	payload := LoginUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
@@ -161,7 +161,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.RespondWithJSON(w, http.StatusFound, loginUserHTTPResponseBody{
+	helper.RespondWithJSON(w, http.StatusFound, LoginUserHTTPResponseBody{
 		ID:           user.ID,
 		Email:        user.Email,
 		Token:        signedToken,
@@ -169,7 +169,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type RefreshAccessTokenHTTPResponse struct {
+type RefreshAccessTokenHTTPResponseBody struct {
 	// TODO: getter!
 	AccessToken string `json:"token"`
 }
@@ -210,23 +210,23 @@ func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	helper.RespondWithJSON(w, http.StatusCreated, RefreshAccessTokenHTTPResponse{
+	helper.RespondWithJSON(w, http.StatusCreated, RefreshAccessTokenHTTPResponseBody{
 		AccessToken: signedToken,
 	})
 }
 
-type UpdateUserHTTPRequest struct {
+type UpdateUserHTTPRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"Password"`
 }
 
-type UpdateUserHTTPResponse struct {
+type UpdateUserHTTPResponseBody struct {
 	ID    int32  `json:"id"`
 	Email string `json:"email"`
 }
 
 func (handler *handler) UpdateUser(w http.ResponseWriter, r *http.Request, authUser database.User) {
-	payload := UpdateUserHTTPRequest{}
+	payload := UpdateUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
@@ -253,7 +253,7 @@ func (handler *handler) UpdateUser(w http.ResponseWriter, r *http.Request, authU
 		helper.RespondWithError(w, http.StatusInternalServerError, "could not update user in database")
 	}
 
-	helper.RespondWithJSON(w, http.StatusOK, UpdateUserHTTPResponse{
+	helper.RespondWithJSON(w, http.StatusOK, UpdateUserHTTPResponseBody{
 		Email: payload.Email,
 		ID:    domainUser.ID(),
 	})
