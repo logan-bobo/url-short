@@ -2,108 +2,26 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
-	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/api"
 	"url-short/internal/database"
+	"url-short/internal/test/fixtures"
+	testHelpers "url-short/internal/test/helpers"
 	"url-short/internal/transport/http/health"
-	"url-short/internal/transport/http/helper"
+	httpHelpers "url-short/internal/transport/http/helper"
 	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
-
-var (
-	userOne                = []byte(`{"email": "test@mail.com", "password": "test"}`)
-	userOneUpdatedPassword = []byte(`{"email": "test@mail.com", "password":"new-password"}`)
-	userOneBadPassword     = []byte(`{"email": "test@mail.com", "password": "testerrrrr"}`)
-	userBadInput           = []byte(`{"gmail": "test@mail.com", "auth": "test", "extra_data": "data"}`)
-	userBadEmail           = []byte(`{"email": "test1mail.com", "password": "test"}`)
-
-	longUrl = []byte(`{"long_url":"https://www.google.com"}`)
-)
-
-func resetDB(db *sql.DB) error {
-	provider, err := goose.NewProvider(
-		goose.DialectPostgres,
-		db,
-		os.DirFS("./sql/schema/"),
-	)
-
-	if err != nil {
-		return errors.New("can not create goose provider")
-	}
-
-	_, err = provider.DownTo(context.Background(), 0)
-
-	if err != nil {
-		return errors.New("can not reset database")
-	}
-
-	_, err = provider.Up(context.Background())
-
-	if err != nil {
-		return errors.New("could not run migrations")
-	}
-
-	return nil
-}
-
-func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, error) {
-	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
-
-	if err != nil {
-		return users.CreateUserHTTPResponseBody{}, err
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-
-	response := httptest.NewRecorder()
-
-	userHandler := users.NewUserHandler(apiCfg)
-	userHandler.CreateUser(response, request)
-
-	got := users.CreateUserHTTPResponseBody{}
-
-	err = json.NewDecoder(response.Body).Decode(&got)
-
-	if err != nil {
-		return users.CreateUserHTTPResponseBody{}, err
-	}
-
-	return got, nil
-}
-
-func loginUserOne(apiCfg *api.APIConfig) (users.LoginUserHTTPResponseBody, error) {
-	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
-	loginRequest.Header.Set("Content-Type", "application/json")
-
-	loginResponse := httptest.NewRecorder()
-
-	userHandler := users.NewUserHandler(apiCfg)
-	userHandler.LoginUser(loginResponse, loginRequest)
-
-	loginGot := users.LoginUserHTTPResponseBody{}
-
-	err := json.NewDecoder(loginResponse.Body).Decode(&loginGot)
-
-	if err != nil {
-		return users.LoginUserHTTPResponseBody{}, err
-	}
-
-	return loginGot, nil
-}
 
 func TestHealthEndpoint(t *testing.T) {
 	t.Run("test healthz endpoint", func(t *testing.T) {
@@ -139,7 +57,7 @@ func TestPostUser(t *testing.T) {
 
 	defer db.Close()
 
-	err = resetDB(db)
+	err = testHelpers.ResetDB(db)
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -154,7 +72,7 @@ func TestPostUser(t *testing.T) {
 	userHandler := users.NewUserHandler(&userAPICfg)
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		userOne, err := setupUserOne(&userAPICfg)
+		userOne, err := testHelpers.SetupUserOne(&userAPICfg)
 
 		if err != nil {
 			t.Errorf("unable to setup user one due to err %q", err)
@@ -166,14 +84,14 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test user creation with bad parameters", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userBadInput))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(fixtures.UserBadInput))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -195,7 +113,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -211,14 +129,14 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test user creation with bad email address", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userBadEmail))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(fixtures.UserBadEmail))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -233,14 +151,14 @@ func TestPostUser(t *testing.T) {
 	})
 
 	t.Run("test a duplicate user can not be created", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(fixtures.UserOne))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 		err := json.NewDecoder(response.Body).Decode(&got)
 
 		if err != nil {
@@ -264,7 +182,7 @@ func TestPostLogin(t *testing.T) {
 
 	defer db.Close()
 
-	err = resetDB(db)
+	err = testHelpers.ResetDB(db)
 
 	if err != nil {
 		t.Errorf("could not reset DB %q", err)
@@ -278,21 +196,21 @@ func TestPostLogin(t *testing.T) {
 
 	userHandler := users.NewUserHandler(&apiCfg)
 
-	_, err = setupUserOne(&apiCfg)
+	_, err = testHelpers.SetupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
 	t.Run("test user login fails with incorrect payload", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userBadInput))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(fixtures.UserBadInput))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
 
 		userHandler.LoginUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -307,14 +225,14 @@ func TestPostLogin(t *testing.T) {
 	})
 
 	t.Run("test user login fails when user can not be found", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userBadEmail))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(fixtures.UserBadEmail))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
 
 		userHandler.LoginUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -329,14 +247,14 @@ func TestPostLogin(t *testing.T) {
 	})
 
 	t.Run("test user login fails with invalid password", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOneBadPassword))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(fixtures.UserOneBadPassword))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
 
 		userHandler.LoginUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelpers.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -351,7 +269,7 @@ func TestPostLogin(t *testing.T) {
 	})
 
 	t.Run("test user is returned correct ID, Email, Token and a Refresh Token", func(t *testing.T) {
-		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
+		request, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(fixtures.UserOne))
 		request.Header.Set("Content-Type", "application/json")
 
 		response := httptest.NewRecorder()
@@ -382,7 +300,7 @@ func TestRefreshEndpoint(t *testing.T) {
 
 	defer db.Close()
 
-	err = resetDB(db)
+	err = testHelpers.ResetDB(db)
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -396,13 +314,13 @@ func TestRefreshEndpoint(t *testing.T) {
 
 	userHandler := users.NewUserHandler(&apiCfg)
 
-	_, err = setupUserOne(&apiCfg)
+	_, err = testHelpers.SetupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := testHelpers.LoginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -442,7 +360,7 @@ func TestPutUser(t *testing.T) {
 
 	defer db.Close()
 
-	err = resetDB(db)
+	err = testHelpers.ResetDB(db)
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -456,20 +374,20 @@ func TestPutUser(t *testing.T) {
 
 	userHandler := users.NewUserHandler(&apiCfg)
 
-	_, err = setupUserOne(&apiCfg)
+	_, err = testHelpers.SetupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := testHelpers.LoginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
 	t.Run("test user can be updated via the put user endpoint", func(t *testing.T) {
-		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(userOneUpdatedPassword))
+		putUserRequest, _ := http.NewRequest(http.MethodPut, "/api/v1/users", bytes.NewBuffer(fixtures.UserOneUpdatedPassword))
 
 		buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
 		putUserRequest.Header.Set("Authorization", buildHeader)
@@ -520,7 +438,7 @@ func TestPostLongURL(t *testing.T) {
 
 	defer db.Close()
 
-	err = resetDB(db)
+	err = testHelpers.ResetDB(db)
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -532,13 +450,13 @@ func TestPostLongURL(t *testing.T) {
 		DB: dbQueries,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	_, err = testHelpers.SetupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := testHelpers.LoginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -547,7 +465,7 @@ func TestPostLongURL(t *testing.T) {
 	urls := shorturls.NewShortUrlHandler(&apiCfg)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
-		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(longUrl))
+		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(fixtures.LongUrl))
 
 		buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
 		postLongURLRequest.Header.Set("Authorization", buildHeader)
@@ -596,7 +514,7 @@ func TestGetShortURL(t *testing.T) {
 
 	defer db.Close()
 
-	err = resetDB(db)
+	err = testHelpers.ResetDB(db)
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -619,13 +537,13 @@ func TestGetShortURL(t *testing.T) {
 		Cache: redisClient,
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	_, err = testHelpers.SetupUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := testHelpers.LoginUserOne(&apiCfg)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -636,7 +554,7 @@ func TestGetShortURL(t *testing.T) {
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
 		"/api/v1/data/shorten",
-		bytes.NewBuffer(longUrl),
+		bytes.NewBuffer(fixtures.LongUrl),
 	)
 
 	buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
