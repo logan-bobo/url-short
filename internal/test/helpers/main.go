@@ -1,89 +1,63 @@
 package helpers
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
-	"errors"
-	"net/http"
-	"net/http/httptest"
+	"fmt"
 	"os"
 
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/pressly/goose/v3"
-
-	"url-short/internal/api"
-	"url-short/internal/test/fixtures"
-	"url-short/internal/transport/http/users"
 )
 
-func ResetDB(db *sql.DB) error {
+func ResetDB(db *sql.DB, schemaPath string) error {
 	provider, err := goose.NewProvider(
 		goose.DialectPostgres,
 		db,
-		os.DirFS("./sql/schema/"),
+		os.DirFS(schemaPath),
 	)
 
 	if err != nil {
-		return errors.New("can not create goose provider")
+		return err
 	}
 
 	_, err = provider.DownTo(context.Background(), 0)
 
 	if err != nil {
-		return errors.New("can not reset database")
+		return err
 	}
 
 	_, err = provider.Up(context.Background())
 
 	if err != nil {
-		return errors.New("could not run migrations")
+		return err
 	}
 
 	return nil
 }
 
-func SetupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, error) {
-	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(fixtures.UserOne))
+func NewTestDB() (uuid.UUID, error) {
+	databaseId := uuid.Must(uuid.NewRandom())
+
+	dbURL := os.Getenv("PG_CONN")
+	db, err := sql.Open("postgres", dbURL)
 
 	if err != nil {
-		return users.CreateUserHTTPResponseBody{}, err
+		return databaseId, err
 	}
 
-	request.Header.Set("Content-Type", "application/json")
+	query := fmt.Sprintf("CREATE DATABASE %s WITH OWNER url_short",
+		pq.QuoteIdentifier(databaseId.String()))
 
-	response := httptest.NewRecorder()
-
-	userHandler := users.NewUserHandler(apiCfg)
-	userHandler.CreateUser(response, request)
-
-	got := users.CreateUserHTTPResponseBody{}
-
-	err = json.NewDecoder(response.Body).Decode(&got)
+	_, err = db.ExecContext(context.TODO(), query)
 
 	if err != nil {
-		return users.CreateUserHTTPResponseBody{}, err
+		return databaseId, err
 	}
 
-	return got, nil
-}
+	defer db.Close()
 
-func LoginUserOne(apiCfg *api.APIConfig) (users.LoginUserHTTPResponseBody, error) {
-	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(fixtures.UserOne))
-	loginRequest.Header.Set("Content-Type", "application/json")
+	return databaseId, nil
 
-	loginResponse := httptest.NewRecorder()
-
-	userHandler := users.NewUserHandler(apiCfg)
-	userHandler.LoginUser(loginResponse, loginRequest)
-
-	loginGot := users.LoginUserHTTPResponseBody{}
-
-	err := json.NewDecoder(loginResponse.Body).Decode(&loginGot)
-
-	if err != nil {
-		return users.LoginUserHTTPResponseBody{}, err
-	}
-
-	return loginGot, nil
 }
