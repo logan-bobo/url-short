@@ -1,0 +1,12 @@
+application:
+  port: 8080
+database:
+  host: "db-test"
+  port: 5432
+  username: "postgres"
+  password: "password"
+  database_name: "url_short"
+cache:
+  host: "redis"
+  port: 6379
+  database: 0

@@ -1,5 +1,2 @@
-SERVER_PORT="8080"
-PG_CONN="postgres://postgres:password@db-test:5432/postgres?sslmode=disable"
 JWT_SECRET="mY+gjoSSg9qeEE0J3mDIlEkp3cEMk0sRReoNkOnLmnGYiWj0/2K0zl9cj1e8QJ34
 LHc0sHPkhqATCfB9ENHxNQ=="
-RDB_CONN="redis://redis:6379/0"
