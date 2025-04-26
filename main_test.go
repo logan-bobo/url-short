@@ -7,16 +7,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/api"
+	"url-short/internal/configuration"
 	"url-short/internal/database"
 	"url-short/internal/transport/http/health"
 	"url-short/internal/transport/http/helper"
@@ -34,7 +37,17 @@ var (
 	longUrl = []byte(`{"long_url":"https://www.google.com"}`)
 )
 
-func resetDB(db *sql.DB) error {
+func generateRandomAlphaString(length int) string {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	const alphabet = "abcdefghijklmnopqrstuvwxyz"
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = alphabet[rand.Intn(len(alphabet))]
+	}
+	return string(result)
+}
+
+func migrateDB(db *sql.DB) error {
 	provider, err := goose.NewProvider(
 		goose.DialectPostgres,
 		db,
@@ -45,12 +58,6 @@ func resetDB(db *sql.DB) error {
 		return errors.New("can not create goose provider")
 	}
 
-	_, err = provider.DownTo(context.Background(), 0)
-
-	if err != nil {
-		return errors.New("can not reset database")
-	}
-
 	_, err = provider.Up(context.Background())
 
 	if err != nil {
@@ -58,6 +65,42 @@ func resetDB(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func withDB() (*sql.DB, error) {
+	applicationSettings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	dbMain, err := sql.Open("postgres", applicationSettings.Database.GetPostgresDSN())
+	if err != nil {
+		return nil, errors.New("can not open database connection")
+	}
+
+	defer dbMain.Close()
+
+	databaseName := generateRandomAlphaString(10)
+
+	_, err = dbMain.Exec("create database " + databaseName)
+
+	if err != nil {
+		return nil, errors.New("could not create database")
+	}
+
+	applicationSettings.Database.SetDatabaseName(databaseName)
+
+	newDSN := applicationSettings.Database.GetPostgresDSN()
+	fmt.Println(newDSN)
+
+	testdb, err := sql.Open("postgres", newDSN)
+	if err != nil {
+		return nil, errors.New("can not open test database connection")
+	}
+
+	migrateDB(testdb)
+
+	return testdb, nil
 }
 
 func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, error) {
@@ -130,17 +173,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestPostUser(t *testing.T) {
-	dbURL := os.Getenv("PG_CONN")
-	db, err := sql.Open("postgres", dbURL)
-
-	if err != nil {
-		t.Errorf("can not open database connection")
-	}
-
-	defer db.Close()
-
-	err = resetDB(db)
-
+	db, err := withDB()
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
 	}
@@ -255,19 +288,9 @@ func TestPostUser(t *testing.T) {
 }
 
 func TestPostLogin(t *testing.T) {
-	dbURL := os.Getenv("PG_CONN")
-	db, err := sql.Open("postgres", dbURL)
-
+	db, err := withDB()
 	if err != nil {
-		t.Errorf("can not open database connection")
-	}
-
-	defer db.Close()
-
-	err = resetDB(db)
-
-	if err != nil {
-		t.Errorf("could not reset DB %q", err)
+		t.Errorf("could not configure test DB %q", err)
 	}
 
 	dbQueries := database.New(db)
@@ -373,19 +396,9 @@ func TestPostLogin(t *testing.T) {
 }
 
 func TestRefreshEndpoint(t *testing.T) {
-	dbURL := os.Getenv("PG_CONN")
-	db, err := sql.Open("postgres", dbURL)
-
+	db, err := withDB()
 	if err != nil {
-		t.Errorf("can not open database connection")
-	}
-
-	defer db.Close()
-
-	err = resetDB(db)
-
-	if err != nil {
-		t.Errorf("could not resetDB %q", err)
+		t.Errorf("could not build DB %q", err)
 	}
 
 	dbQueries := database.New(db)
@@ -433,16 +446,7 @@ func TestRefreshEndpoint(t *testing.T) {
 }
 
 func TestPutUser(t *testing.T) {
-	dbURL := os.Getenv("PG_CONN")
-	db, err := sql.Open("postgres", dbURL)
-
-	if err != nil {
-		t.Errorf("can not open database connection")
-	}
-
-	defer db.Close()
-
-	err = resetDB(db)
+	db, err := withDB()
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -511,17 +515,7 @@ func TestPutUser(t *testing.T) {
 }
 
 func TestPostLongURL(t *testing.T) {
-	dbURL := os.Getenv("PG_CONN")
-	db, err := sql.Open("postgres", dbURL)
-
-	if err != nil {
-		t.Errorf("can not open database connection")
-	}
-
-	defer db.Close()
-
-	err = resetDB(db)
-
+	db, err := withDB()
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
 	}
@@ -586,17 +580,11 @@ func TestPostLongURL(t *testing.T) {
 }
 
 func TestGetShortURL(t *testing.T) {
-	dbURL := os.Getenv("PG_CONN")
-	db, err := sql.Open("postgres", dbURL)
-	rdbURL := os.Getenv("RDB_CONN")
-
+	db, err := withDB()
+	as, err := configuration.NewApplicationSettings()
 	if err != nil {
-		t.Errorf("can not open database connection")
+		t.Errorf("error building app settings %q", err)
 	}
-
-	defer db.Close()
-
-	err = resetDB(db)
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -604,10 +592,10 @@ func TestGetShortURL(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	opt, err := redis.ParseURL(rdbURL)
+	opt, err := redis.ParseURL(as.Cache.GetCacheURL())
 
 	if err != nil {
-		t.Errorf("oculd not parse reddis connection")
+		t.Errorf("could not parse reddis connection")
 	}
 
 	redisClient := redis.NewClient(opt)
