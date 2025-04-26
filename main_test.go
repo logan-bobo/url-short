@@ -91,14 +91,15 @@ func withDB() (*sql.DB, error) {
 	applicationSettings.Database.SetDatabaseName(databaseName)
 
 	newDSN := applicationSettings.Database.GetPostgresDSN()
-	fmt.Println(newDSN)
 
 	testdb, err := sql.Open("postgres", newDSN)
 	if err != nil {
 		return nil, errors.New("can not open test database connection")
 	}
 
-	migrateDB(testdb)
+	if err = migrateDB(testdb); err != nil {
+		return nil, err
+	}
 
 	return testdb, nil
 }
@@ -581,6 +582,10 @@ func TestPostLongURL(t *testing.T) {
 
 func TestGetShortURL(t *testing.T) {
 	db, err := withDB()
+	if err != nil {
+		t.Errorf("error building DB %q", err)
+	}
+
 	as, err := configuration.NewApplicationSettings()
 	if err != nil {
 		t.Errorf("error building app settings %q", err)
