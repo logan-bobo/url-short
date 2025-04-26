@@ -31,7 +31,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 10
-  redis:
+  cache:
     image: 'bitnami/redis:latest'
     environment:
       - ALLOW_EMPTY_PASSWORD=yes

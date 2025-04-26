@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	"os"
 
 	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 
 	"url-short/internal/api"
+	"url-short/internal/configuration"
 	"url-short/internal/database"
 	"url-short/internal/transport/http/auth"
 	"url-short/internal/transport/http/health"
@@ -18,13 +18,12 @@ import (
 )
 
 func main() {
-	serverPort := os.Getenv("SERVER_PORT")
-	dbURL := os.Getenv("PG_CONN")
-	rdbURL := os.Getenv("RDB_CONN")
-	jwtSecret := os.Getenv("JWT_SECRET")
+	appSettings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	db, err := sql.Open("postgres", dbURL)
-
+	db, err := sql.Open("postgres", appSettings.Database.GetPostgresDSN())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,19 +33,22 @@ func main() {
 	mux := http.NewServeMux()
 
 	server := &http.Server{
-		Addr:    ":" + serverPort,
+		Addr:    ":" + appSettings.Server.Port,
 		Handler: mux,
 	}
 
-	opt, err := redis.ParseURL(rdbURL)
-
+	opt, err := redis.ParseURL(appSettings.Cache.GetCacheURL())
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	redisClient := redis.NewClient(opt)
 
-	apiCfg := api.NewAPIConfig(dbQueries, redisClient, jwtSecret)
+	apiCfg := api.NewAPIConfig(
+		dbQueries,
+		redisClient,
+		appSettings.Server.JwtSecret,
+	)
 
 	users := users.NewUserHandler(apiCfg)
 	auth := auth.NewAuthHandler(apiCfg)
@@ -91,6 +93,6 @@ func main() {
 		users.RefreshAccessToken,
 	)
 
-	log.Printf("Serving port : %v \n", serverPort)
+	log.Printf("Serving port : %v \n", appSettings.Server.Port)
 	log.Fatal(server.ListenAndServe())
 }
