@@ -75,7 +75,7 @@ func withDB() (*sql.DB, error) {
 
 	dbMain, err := sql.Open("postgres", applicationSettings.Database.GetPostgresDSN())
 	if err != nil {
-		return nil, errors.New("can not open database connection")
+		return nil, err
 	}
 
 	defer dbMain.Close()
@@ -85,7 +85,7 @@ func withDB() (*sql.DB, error) {
 	_, err = dbMain.Exec("create database " + databaseName)
 
 	if err != nil {
-		return nil, errors.New("could not create database")
+		return nil, err
 	}
 
 	applicationSettings.Database.SetDatabaseName(databaseName)
@@ -94,7 +94,7 @@ func withDB() (*sql.DB, error) {
 
 	testdb, err := sql.Open("postgres", newDSN)
 	if err != nil {
-		return nil, errors.New("can not open test database connection")
+		return nil, err
 	}
 
 	if err = migrateDB(testdb); err != nil {
@@ -176,7 +176,7 @@ func TestHealthEndpoint(t *testing.T) {
 func TestPostUser(t *testing.T) {
 	db, err := withDB()
 	if err != nil {
-		t.Errorf("could not resetDB %q", err)
+		t.Errorf("could not create DB %q", err)
 	}
 
 	dbQueries := database.New(db)
