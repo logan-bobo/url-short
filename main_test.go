@@ -2,27 +2,21 @@ package main
 
 import (
 	"bytes"
-	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
-	"time"
 
-	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/api"
 	"url-short/internal/configuration"
 	"url-short/internal/database"
+	testHelper "url-short/internal/test/helpers"
 	"url-short/internal/transport/http/health"
-	"url-short/internal/transport/http/helper"
+	httpHelper "url-short/internal/transport/http/helper"
 	"url-short/internal/transport/http/shorturls"
 	"url-short/internal/transport/http/users"
 )
@@ -36,73 +30,6 @@ var (
 
 	longUrl = []byte(`{"long_url":"https://www.google.com"}`)
 )
-
-func generateRandomAlphaString(length int) string {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	const alphabet = "abcdefghijklmnopqrstuvwxyz"
-	result := make([]byte, length)
-	for i := range result {
-		result[i] = alphabet[rand.Intn(len(alphabet))]
-	}
-	return string(result)
-}
-
-func migrateDB(db *sql.DB) error {
-	provider, err := goose.NewProvider(
-		goose.DialectPostgres,
-		db,
-		os.DirFS("./sql/schema/"),
-	)
-
-	if err != nil {
-		return errors.New("can not create goose provider")
-	}
-
-	_, err = provider.Up(context.Background())
-
-	if err != nil {
-		return errors.New("could not run migrations")
-	}
-
-	return nil
-}
-
-func withDB() (*sql.DB, error) {
-	applicationSettings, err := configuration.NewApplicationSettings()
-	if err != nil {
-		return nil, err
-	}
-
-	dbMain, err := sql.Open("postgres", applicationSettings.Database.GetPostgresDSN())
-	if err != nil {
-		return nil, err
-	}
-
-	defer dbMain.Close()
-
-	databaseName := generateRandomAlphaString(10)
-
-	_, err = dbMain.Exec("create database " + databaseName)
-
-	if err != nil {
-		return nil, err
-	}
-
-	applicationSettings.Database.SetDatabaseName(databaseName)
-
-	newDSN := applicationSettings.Database.GetPostgresDSN()
-
-	testdb, err := sql.Open("postgres", newDSN)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = migrateDB(testdb); err != nil {
-		return nil, err
-	}
-
-	return testdb, nil
-}
 
 func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, error) {
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
@@ -174,7 +101,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestPostUser(t *testing.T) {
-	db, err := withDB()
+	db, err := testHelper.WithDB()
 	if err != nil {
 		t.Errorf("could not create DB %q", err)
 	}
@@ -207,7 +134,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -229,7 +156,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -252,7 +179,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -274,7 +201,7 @@ func TestPostUser(t *testing.T) {
 
 		userHandler.CreateUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 		err := json.NewDecoder(response.Body).Decode(&got)
 
 		if err != nil {
@@ -289,7 +216,7 @@ func TestPostUser(t *testing.T) {
 }
 
 func TestPostLogin(t *testing.T) {
-	db, err := withDB()
+	db, err := testHelper.WithDB()
 	if err != nil {
 		t.Errorf("could not configure test DB %q", err)
 	}
@@ -316,7 +243,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -338,7 +265,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -360,7 +287,7 @@ func TestPostLogin(t *testing.T) {
 
 		userHandler.LoginUser(response, request)
 
-		got := helper.ErrorHTTPResponseBody{}
+		got := httpHelper.ErrorHTTPResponseBody{}
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -397,7 +324,7 @@ func TestPostLogin(t *testing.T) {
 }
 
 func TestRefreshEndpoint(t *testing.T) {
-	db, err := withDB()
+	db, err := testHelper.WithDB()
 	if err != nil {
 		t.Errorf("could not build DB %q", err)
 	}
@@ -447,7 +374,7 @@ func TestRefreshEndpoint(t *testing.T) {
 }
 
 func TestPutUser(t *testing.T) {
-	db, err := withDB()
+	db, err := testHelper.WithDB()
 
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
@@ -516,7 +443,7 @@ func TestPutUser(t *testing.T) {
 }
 
 func TestPostLongURL(t *testing.T) {
-	db, err := withDB()
+	db, err := testHelper.WithDB()
 	if err != nil {
 		t.Errorf("could not resetDB %q", err)
 	}
@@ -581,7 +508,7 @@ func TestPostLongURL(t *testing.T) {
 }
 
 func TestGetShortURL(t *testing.T) {
-	db, err := withDB()
+	db, err := testHelper.WithDB()
 	if err != nil {
 		t.Errorf("error building DB %q", err)
 	}
