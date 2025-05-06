@@ -9,19 +9,20 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/transport/http/helper"
 )
 
 type handler struct {
 	// temporary now to allow transport, service and repository layers to be decoupled
-	apiCfg *api.APIConfig
+	database  *database.Queries
+	JWTSecret string
 }
 
-func NewAuthHandler(apiConfig *api.APIConfig) *handler {
+func NewAuthHandler(database *database.Queries, JWTSecret string) *handler {
 	return &handler{
-		apiCfg: apiConfig,
+		database:  database,
+		JWTSecret: JWTSecret,
 	}
 }
 
@@ -61,7 +62,7 @@ func (handler *handler) AuthenticationMiddleware(nextHandler authedHandeler) htt
 		token, err := jwt.ParseWithClaims(
 			requestToken,
 			&claims,
-			func(token *jwt.Token) (any, error) { return []byte(handler.apiCfg.JWTSecret), nil },
+			func(token *jwt.Token) (any, error) { return []byte(handler.JWTSecret), nil },
 		)
 
 		if err != nil {
@@ -94,7 +95,7 @@ func (handler *handler) AuthenticationMiddleware(nextHandler authedHandeler) htt
 			helper.RespondWithError(w, http.StatusUnauthorized, "invalid jwt subject")
 		}
 
-		user, err := handler.apiCfg.DB.SelectUserByID(r.Context(), int32(userIDStr))
+		user, err := handler.database.SelectUserByID(r.Context(), int32(userIDStr))
 
 		if err != nil {
 			log.Println(err)
