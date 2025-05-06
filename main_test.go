@@ -8,10 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
-	"url-short/internal/api"
+	"url-short/internal/application"
 	"url-short/internal/configuration"
 	"url-short/internal/database"
 	testHelper "url-short/internal/test/helpers"
@@ -31,7 +30,7 @@ var (
 	longUrl = []byte(`{"long_url":"https://www.google.com"}`)
 )
 
-func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, error) {
+func setupUserOne(a *application.Application) (users.CreateUserHTTPResponseBody, error) {
 	request, err := http.NewRequest(http.MethodPost, "/api/v1/users", bytes.NewBuffer(userOne))
 
 	if err != nil {
@@ -42,7 +41,7 @@ func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, erro
 
 	response := httptest.NewRecorder()
 
-	userHandler := users.NewUserHandler(apiCfg)
+	userHandler := users.NewUserHandler(a.DB, a.JWTSecret)
 	userHandler.CreateUser(response, request)
 
 	got := users.CreateUserHTTPResponseBody{}
@@ -56,13 +55,13 @@ func setupUserOne(apiCfg *api.APIConfig) (users.CreateUserHTTPResponseBody, erro
 	return got, nil
 }
 
-func loginUserOne(apiCfg *api.APIConfig) (users.LoginUserHTTPResponseBody, error) {
+func loginUserOne(application *application.Application) (users.LoginUserHTTPResponseBody, error) {
 	loginRequest, _ := http.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewBuffer(userOne))
 	loginRequest.Header.Set("Content-Type", "application/json")
 
 	loginResponse := httptest.NewRecorder()
 
-	userHandler := users.NewUserHandler(apiCfg)
+	userHandler := users.NewUserHandler(application.DB, application.JWTSecret)
 	userHandler.LoginUser(loginResponse, loginRequest)
 
 	loginGot := users.LoginUserHTTPResponseBody{}
@@ -108,14 +107,21 @@ func TestPostUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	userAPICfg := api.APIConfig{
-		DB: dbQueries,
+	settings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		t.Errorf("could not get test vars %v", err)
 	}
 
-	userHandler := users.NewUserHandler(&userAPICfg)
+	app, err := application.NewApplication(settings)
+	if err != nil {
+		t.Errorf("could not set up server %v", err)
+	}
+	app.DB = dbQueries
+
+	userHandler := users.NewUserHandler(app.DB, app.JWTSecret)
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
-		userOne, err := setupUserOne(&userAPICfg)
+		userOne, err := setupUserOne(app)
 
 		if err != nil {
 			t.Errorf("unable to setup user one due to err %q", err)
@@ -223,13 +229,21 @@ func TestPostLogin(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := api.APIConfig{
-		DB: dbQueries,
+	settings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		t.Errorf("could not configure test settings %v", err)
 	}
 
-	userHandler := users.NewUserHandler(&apiCfg)
+	app, err := application.NewApplication(settings)
+	if err != nil {
+		t.Errorf("could not build test application %v", err)
+	}
 
-	_, err = setupUserOne(&apiCfg)
+	app.DB = dbQueries
+
+	userHandler := users.NewUserHandler(app.DB, app.JWTSecret)
+
+	_, err = setupUserOne(app)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
@@ -331,19 +345,26 @@ func TestRefreshEndpoint(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := api.APIConfig{
-		DB: dbQueries,
+	settings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		t.Errorf("could not configure test settings %v", err)
 	}
 
-	userHandler := users.NewUserHandler(&apiCfg)
+	app, err := application.NewApplication(settings)
+	if err != nil {
+		t.Errorf("could not build test application %v", err)
+	}
+	app.DB = dbQueries
 
-	_, err = setupUserOne(&apiCfg)
+	userHandler := users.NewUserHandler(app.DB, app.JWTSecret)
+
+	_, err = setupUserOne(app)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := loginUserOne(app)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -382,19 +403,27 @@ func TestPutUser(t *testing.T) {
 
 	dbQueries := database.New(db)
 
-	apiCfg := api.APIConfig{
-		DB: dbQueries,
+	settings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		t.Errorf("could not configure test settings %v", err)
 	}
 
-	userHandler := users.NewUserHandler(&apiCfg)
+	app, err := application.NewApplication(settings)
+	if err != nil {
+		t.Errorf("could not build test application %v", err)
+	}
 
-	_, err = setupUserOne(&apiCfg)
+	app.DB = dbQueries
+
+	userHandler := users.NewUserHandler(app.DB, app.JWTSecret)
+
+	_, err = setupUserOne(app)
 
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
+	userOne, err := loginUserOne(app)
 
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
@@ -445,28 +474,33 @@ func TestPutUser(t *testing.T) {
 func TestPostLongURL(t *testing.T) {
 	db, err := testHelper.WithDB()
 	if err != nil {
-		t.Errorf("could not resetDB %q", err)
+		t.Errorf("could not reset db %q", err)
 	}
 
 	dbQueries := database.New(db)
 
-	apiCfg := api.APIConfig{
-		DB: dbQueries,
+	settings, err := configuration.NewApplicationSettings()
+	if err != nil {
+		t.Errorf("could not get test settings %v", err)
 	}
 
-	_, err = setupUserOne(&apiCfg)
+	app, err := application.NewApplication(settings)
+	if err != nil {
+		t.Errorf("could not build test application %v", err)
+	}
+	app.DB = dbQueries
 
+	_, err = setupUserOne(app)
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
-
+	userOne, err := loginUserOne(app)
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := shorturls.NewShortUrlHandler(&apiCfg)
+	urls := shorturls.NewShortUrlHandler(app.DB, app.Cache)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
 		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(longUrl))
@@ -485,7 +519,7 @@ func TestPostLongURL(t *testing.T) {
 		// As there are no hashes in the database there is no chance of a collision
 		// the first hash we generate here and the hash in the call to the handler will
 		// always be the same so we compare the two
-		hash, err := shorturls.HashCollisionDetection(apiCfg.DB, "www.google.com", 1, postLongURLRequest.Context())
+		hash, err := shorturls.HashCollisionDetection(app.DB, "www.google.com", 1, postLongURLRequest.Context())
 
 		if err != nil {
 			t.Errorf("could not generate hash err %q", err)
@@ -513,45 +547,31 @@ func TestGetShortURL(t *testing.T) {
 		t.Errorf("error building DB %q", err)
 	}
 
-	as, err := configuration.NewApplicationSettings()
+	settings, err := configuration.NewApplicationSettings()
 	if err != nil {
 		t.Errorf("error building app settings %q", err)
 	}
 
-	if err != nil {
-		t.Errorf("could not resetDB %q", err)
-	}
-
 	dbQueries := database.New(db)
 
-	opt, err := redis.ParseURL(as.Cache.GetCacheURL())
-
+	app, err := application.NewApplication(settings)
 	if err != nil {
-		t.Errorf("could not parse reddis connection")
+		t.Errorf("error building test application %v", err)
 	}
 
-	redisClient := redis.NewClient(opt)
+	app.DB = dbQueries
 
-	defer redisClient.Close()
-
-	apiCfg := api.APIConfig{
-		DB:    dbQueries,
-		Cache: redisClient,
-	}
-
-	_, err = setupUserOne(&apiCfg)
-
+	_, err = setupUserOne(app)
 	if err != nil {
 		t.Errorf("can not set up user for test case with err %q", err)
 	}
 
-	userOne, err := loginUserOne(&apiCfg)
-
+	userOne, err := loginUserOne(app)
 	if err != nil {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := shorturls.NewShortUrlHandler(&apiCfg)
+	urls := shorturls.NewShortUrlHandler(app.DB, app.Cache)
 
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
@@ -564,8 +584,7 @@ func TestGetShortURL(t *testing.T) {
 
 	postURLResponse := httptest.NewRecorder()
 
-	user, err := dbQueries.SelectUser(postLongURLRequest.Context(), userOne.Email)
-
+	user, err := app.DB.SelectUser(postLongURLRequest.Context(), userOne.Email)
 	if err != nil {
 		t.Error("could not find user that was expected to exist")
 	}
@@ -573,8 +592,12 @@ func TestGetShortURL(t *testing.T) {
 	urls.CreateShortURL(postURLResponse, postLongURLRequest, user)
 
 	gotPutLongURL := shorturls.UpdateShortURLHTTPResponseBody{}
+	fmt.Println(gotPutLongURL)
 
-	_ = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
+	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
+	if err != nil {
+		t.Errorf("could not parse update short URL response %v", err)
+	}
 
 	t.Run("test short url redirects to a long URL", func(t *testing.T) {
 		getShortURLRequest := httptest.NewRequest(

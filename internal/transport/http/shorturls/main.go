@@ -11,7 +11,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/shortener"
 	"url-short/internal/transport/http/helper"
@@ -19,12 +18,14 @@ import (
 
 type handler struct {
 	// temporary now to allow transport, service and repository layers to be decoupled
-	apiCfg *api.APIConfig
+	database *database.Queries
+	cache    *redis.Client
 }
 
-func NewShortUrlHandler(apiConfig *api.APIConfig) *handler {
+func NewShortUrlHandler(d *database.Queries, c *redis.Client) *handler {
 	return &handler{
-		apiCfg: apiConfig,
+		database: d,
+		cache:    c,
 	}
 }
 
@@ -56,7 +57,7 @@ func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, u
 	}
 
 	// This should not really be the concern of the API layer
-	shortURLHash, err := HashCollisionDetection(handler.apiCfg.DB, url.String(), 1, r.Context())
+	shortURLHash, err := HashCollisionDetection(handler.database, url.String(), 1, r.Context())
 
 	if err != nil {
 		log.Println(err)
@@ -65,7 +66,7 @@ func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, u
 	}
 
 	now := time.Now()
-	shortenedURL, err := handler.apiCfg.DB.CreateURL(r.Context(), database.CreateURLParams{
+	shortenedURL, err := handler.database.CreateURL(r.Context(), database.CreateURLParams{
 		LongUrl:   url.String(),
 		ShortUrl:  shortURLHash,
 		CreatedAt: now,
@@ -114,13 +115,13 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cacheVal, err := handler.apiCfg.Cache.Get(r.Context(), query).Result()
+	cacheVal, err := handler.cache.Get(r.Context(), query).Result()
 
 	switch {
 	case err == redis.Nil:
 		log.Printf("cache miss, key %s does not exists, writing to redis", query)
 
-		row, err := handler.apiCfg.DB.SelectURL(r.Context(), query)
+		row, err := handler.database.SelectURL(r.Context(), query)
 
 		if err != nil {
 			log.Println(err)
@@ -128,7 +129,7 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = handler.apiCfg.Cache.Set(r.Context(), query, row.LongUrl, (time.Hour * 1)).Err()
+		err = handler.cache.Set(r.Context(), query, row.LongUrl, (time.Hour * 1)).Err()
 
 		if err != nil {
 			log.Printf("could not write to redis cache %s", err)
@@ -140,7 +141,7 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		log.Println(err)
 
-		row, err := handler.apiCfg.DB.SelectURL(r.Context(), query)
+		row, err := handler.database.SelectURL(r.Context(), query)
 
 		if err != nil {
 			log.Println(err)
@@ -154,7 +155,7 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	case cacheVal == "":
 		log.Printf("key %s does not have a value", query)
 
-		row, err := handler.apiCfg.DB.SelectURL(r.Context(), query)
+		row, err := handler.database.SelectURL(r.Context(), query)
 
 		if err != nil {
 			log.Println(err)
@@ -178,7 +179,7 @@ func (handler *handler) DeleteShortURL(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	err := handler.apiCfg.DB.DeleteURL(r.Context(), database.DeleteURLParams{
+	err := handler.database.DeleteURL(r.Context(), database.DeleteURLParams{
 		UserID:   user.ID,
 		ShortUrl: query,
 	})
@@ -217,7 +218,7 @@ func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, u
 		helper.RespondWithError(w, http.StatusBadRequest, "invalid request body")
 	}
 
-	err = handler.apiCfg.DB.UpdateShortURL(r.Context(), database.UpdateShortURLParams{
+	err = handler.database.UpdateShortURL(r.Context(), database.UpdateShortURLParams{
 		UserID:   user.ID,
 		ShortUrl: query,
 		LongUrl:  payload.LongURL,
@@ -228,7 +229,7 @@ func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	err = handler.apiCfg.Cache.Set(r.Context(), query, payload.LongURL, (time.Hour * 1)).Err()
+	err = handler.cache.Set(r.Context(), query, payload.LongURL, (time.Hour * 1)).Err()
 
 	if err != nil {
 		log.Println(err)

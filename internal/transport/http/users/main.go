@@ -13,7 +13,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"url-short/internal/api"
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
 	"url-short/internal/transport/http/auth"
@@ -22,12 +21,14 @@ import (
 
 type handler struct {
 	// temporary now to allow transport, service and repository layers to be decoupled
-	apiCfg *api.APIConfig
+	database  *database.Queries
+	JWTSecret string
 }
 
-func NewUserHandler(apiConfig *api.APIConfig) *handler {
+func NewUserHandler(database *database.Queries, JWTSecret string) *handler {
 	return &handler{
-		apiCfg: apiConfig,
+		database:  database,
+		JWTSecret: JWTSecret,
 	}
 }
 
@@ -59,7 +60,7 @@ func (handler *handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := handler.apiCfg.DB.CreateUser(r.Context(), database.CreateUserParams{
+	user, err := handler.database.CreateUser(r.Context(), database.CreateUserParams{
 		Email:     domainUser.Email(),
 		Password:  domainUser.PasswordHash(),
 		CreatedAt: domainUser.CreatedAt(),
@@ -104,7 +105,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// This should all be hidden behind a service and data access layer
-	user, err := handler.apiCfg.DB.SelectUser(r.Context(), payload.Email)
+	user, err := handler.database.SelectUser(r.Context(), payload.Email)
 
 	if err == sql.ErrNoRows {
 		helper.RespondWithError(w, http.StatusNotFound, "could not find user")
@@ -133,7 +134,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
 
-	signedToken, err := token.SignedString([]byte(handler.apiCfg.JWTSecret))
+	signedToken, err := token.SignedString([]byte(handler.JWTSecret))
 
 	if err != nil {
 		helper.RespondWithError(w, http.StatusInternalServerError, "can not create JWT")
@@ -150,7 +151,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = handler.apiCfg.DB.UserTokenRefresh(r.Context(), database.UserTokenRefreshParams{
+	err = handler.database.UserTokenRefresh(r.Context(), database.UserTokenRefreshParams{
 		RefreshToken:           sql.NullString{String: refreshToken, Valid: true},
 		RefreshTokenRevokeDate: sql.NullTime{Time: time.Now().Add(60 * (24 * time.Hour)), Valid: true},
 		ID:                     user.ID,
@@ -182,7 +183,7 @@ func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	user, err := handler.apiCfg.DB.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
+	user, err := handler.database.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
 
 	if err != nil {
 		helper.RespondWithError(w, http.StatusUnauthorized, "can not refresh token no user found")
@@ -203,7 +204,7 @@ func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Reques
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
 
-	signedToken, err := token.SignedString([]byte(handler.apiCfg.JWTSecret))
+	signedToken, err := token.SignedString([]byte(handler.JWTSecret))
 
 	if err != nil {
 		helper.RespondWithError(w, http.StatusInternalServerError, "can not create JWT")
@@ -242,7 +243,7 @@ func (handler *handler) UpdateUser(w http.ResponseWriter, r *http.Request, authU
 	}
 	domainUser.SetID(authUser.ID)
 
-	err = handler.apiCfg.DB.UpdateUser(r.Context(), database.UpdateUserParams{
+	err = handler.database.UpdateUser(r.Context(), database.UpdateUserParams{
 		Email:     domainUser.Email(),
 		Password:  domainUser.PasswordHash(),
 		ID:        domainUser.ID(),
