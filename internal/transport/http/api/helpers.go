@@ -1,4 +1,4 @@
-package helper
+package api
 
 import (
 	"encoding/json"
@@ -6,11 +6,11 @@ import (
 	"net/http"
 )
 
-type ErrorHTTPResponseBody struct {
+type errorHTTPResponseBody struct {
 	Error string `json:"error"`
 }
 
-func RespondWithJSON(w http.ResponseWriter, status int, payload any) {
+func respondWithJSON(w http.ResponseWriter, status int, payload any) {
 	data, err := json.Marshal(payload)
 
 	if err != nil {
@@ -27,10 +27,10 @@ func RespondWithJSON(w http.ResponseWriter, status int, payload any) {
 	}
 }
 
-func RespondWithError(w http.ResponseWriter, code int, msg string) {
-	errorResponse := ErrorHTTPResponseBody{
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	errorResponse := errorHTTPResponseBody{
 		Error: msg,
 	}
 
-	RespondWithJSON(w, code, errorResponse)
+	respondWithJSON(w, code, errorResponse)
 }

@@ -1,4 +1,4 @@
-package users
+package api
 
 import (
 	"crypto/rand"
@@ -15,40 +15,38 @@ import (
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
-	"url-short/internal/transport/http/auth"
-	"url-short/internal/transport/http/helper"
 )
 
-type handler struct {
+type userHandler struct {
 	// temporary now to allow transport, service and repository layers to be decoupled
 	database  *database.Queries
 	JWTSecret string
 }
 
-func NewUserHandler(database *database.Queries, JWTSecret string) *handler {
-	return &handler{
+func NewUserHandler(database *database.Queries, JWTSecret string) *userHandler {
+	return &userHandler{
 		database:  database,
 		JWTSecret: JWTSecret,
 	}
 }
 
-type CreateUserHTTPRequestBody struct {
+type createUserHTTPRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"Password"`
 }
 
-type CreateUserHTTPResponseBody struct {
+type createUserHTTPResponseBody struct {
 	ID    int32  `json:"id"`
 	Email string `json:"email"`
 }
 
-func (handler *handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	payload := &CreateUserHTTPRequestBody{}
+func (handler *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	payload := &createUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusBadRequest, "could not parse request")
+		respondWithError(w, http.StatusBadRequest, "could not parse request")
 		return
 	}
 
@@ -56,7 +54,7 @@ func (handler *handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -69,59 +67,59 @@ func (handler *handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusInternalServerError, "could not create user in database")
+		respondWithError(w, http.StatusInternalServerError, "could not create user in database")
 	}
 
-	helper.RespondWithJSON(w, http.StatusCreated, CreateUserHTTPResponseBody{
+	respondWithJSON(w, http.StatusCreated, createUserHTTPResponseBody{
 		ID:    user.ID,
 		Email: user.Email,
 	})
 }
 
-type LoginUserHTTPRequestBody struct {
+type loginUserHTTPRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"Password"`
 }
 
-type LoginUserHTTPResponseBody struct {
+type loginUserHTTPResponseBody struct {
 	ID           int32  `json:"id"`
 	Email        string `json:"email"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
-	payload := LoginUserHTTPRequestBody{}
+func (handler *userHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
+	payload := loginUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusBadRequest, "could not parse request")
+		respondWithError(w, http.StatusBadRequest, "could not parse request")
 		return
 	}
 
 	if payload.Email == "" || payload.Password == "" {
-		helper.RespondWithError(w, http.StatusBadRequest, "invalid parameters for user login")
+		respondWithError(w, http.StatusBadRequest, "invalid parameters for user login")
 	}
 
 	// This should all be hidden behind a service and data access layer
 	user, err := handler.database.SelectUser(r.Context(), payload.Email)
 
 	if err == sql.ErrNoRows {
-		helper.RespondWithError(w, http.StatusNotFound, "could not find user")
+		respondWithError(w, http.StatusNotFound, "could not find user")
 		return
 	}
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+		respondWithError(w, http.StatusInternalServerError, "database error")
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password))
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusBadRequest, "invalid password")
+		respondWithError(w, http.StatusBadRequest, "invalid password")
 		return
 	}
 
@@ -137,7 +135,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	signedToken, err := token.SignedString([]byte(handler.JWTSecret))
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusInternalServerError, "can not create JWT")
+		respondWithError(w, http.StatusInternalServerError, "can not create JWT")
 		return
 	}
 
@@ -147,7 +145,7 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusInternalServerError, "can not generate refresh token")
+		respondWithError(w, http.StatusInternalServerError, "can not generate refresh token")
 		return
 	}
 
@@ -158,11 +156,11 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusInternalServerError, "can not update user with refresh token")
+		respondWithError(w, http.StatusInternalServerError, "can not update user with refresh token")
 		return
 	}
 
-	helper.RespondWithJSON(w, http.StatusFound, LoginUserHTTPResponseBody{
+	respondWithJSON(w, http.StatusFound, loginUserHTTPResponseBody{
 		ID:           user.ID,
 		Email:        user.Email,
 		Token:        signedToken,
@@ -170,28 +168,28 @@ func (handler *handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type RefreshAccessTokenHTTPResponseBody struct {
+type refreshAccessTokenHTTPResponseBody struct {
 	// TODO: getter!
 	AccessToken string `json:"token"`
 }
 
-func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
-	requestToken, err := auth.ExtractAuthTokenFromRequest(r)
+func (handler *userHandler) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
+	requestToken, err := ExtractAuthTokenFromRequest(r)
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	user, err := handler.database.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusUnauthorized, "can not refresh token no user found")
+		respondWithError(w, http.StatusUnauthorized, "can not refresh token no user found")
 		return
 	}
 
 	if time.Now().After(user.RefreshTokenRevokeDate.Time) {
-		helper.RespondWithError(w, http.StatusUnauthorized, "refresh token expired, please login again")
+		respondWithError(w, http.StatusUnauthorized, "refresh token expired, please login again")
 		return
 	}
 
@@ -207,39 +205,39 @@ func (handler *handler) RefreshAccessToken(w http.ResponseWriter, r *http.Reques
 	signedToken, err := token.SignedString([]byte(handler.JWTSecret))
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusInternalServerError, "can not create JWT")
+		respondWithError(w, http.StatusInternalServerError, "can not create JWT")
 		return
 	}
 
-	helper.RespondWithJSON(w, http.StatusCreated, RefreshAccessTokenHTTPResponseBody{
+	respondWithJSON(w, http.StatusCreated, refreshAccessTokenHTTPResponseBody{
 		AccessToken: signedToken,
 	})
 }
 
-type UpdateUserHTTPRequestBody struct {
+type updateUserHTTPRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"Password"`
 }
 
-type UpdateUserHTTPResponseBody struct {
+type updateUserHTTPResponseBody struct {
 	ID    int32  `json:"id"`
 	Email string `json:"email"`
 }
 
-func (handler *handler) UpdateUser(w http.ResponseWriter, r *http.Request, authUser database.User) {
-	payload := UpdateUserHTTPRequestBody{}
+func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, authUser database.User) {
+	payload := updateUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusBadRequest, "incorrect parameters for user update request")
+		respondWithError(w, http.StatusBadRequest, "incorrect parameters for user update request")
 		return
 	}
 
 	domainUser, err := user.NewUser(payload.Email, payload.Password)
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
 	domainUser.SetID(authUser.ID)
 
@@ -251,10 +249,10 @@ func (handler *handler) UpdateUser(w http.ResponseWriter, r *http.Request, authU
 	})
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusInternalServerError, "could not update user in database")
+		respondWithError(w, http.StatusInternalServerError, "could not update user in database")
 	}
 
-	helper.RespondWithJSON(w, http.StatusOK, UpdateUserHTTPResponseBody{
+	respondWithJSON(w, http.StatusOK, updateUserHTTPResponseBody{
 		Email: payload.Email,
 		ID:    domainUser.ID(),
 	})

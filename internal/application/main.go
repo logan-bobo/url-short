@@ -10,10 +10,7 @@ import (
 
 	"url-short/internal/configuration"
 	"url-short/internal/database"
-	"url-short/internal/transport/http/auth"
-	"url-short/internal/transport/http/health"
-	"url-short/internal/transport/http/shorturls"
-	"url-short/internal/transport/http/users"
+	"url-short/internal/transport/http/api"
 )
 
 type Application struct {
@@ -45,19 +42,16 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 
 	redisClient := redis.NewClient(opt)
 
-	application := &Application{
+	a := &Application{
 		Server:    server,
 		DB:        dbQueries,
 		Cache:     redisClient,
 		JWTSecret: s.Server.JwtSecret,
 	}
 
-	users := users.NewUserHandler(application.DB, application.JWTSecret)
-	auth := auth.NewAuthHandler(application.DB, application.JWTSecret)
-	urls := shorturls.NewShortUrlHandler(application.DB, application.Cache)
-
-	// utility endpoints
-	mux.HandleFunc("GET /api/v1/healthz", health.GetHealth)
+	users := api.NewUserHandler(a.DB, a.JWTSecret)
+	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
+	urls := api.NewShortUrlHandler(a.DB, a.Cache)
 
 	// url management endpoints
 	mux.HandleFunc(
@@ -95,5 +89,5 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 		users.RefreshAccessToken,
 	)
 
-	return application, nil
+	return a, nil
 }
