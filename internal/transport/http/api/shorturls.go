@@ -1,4 +1,4 @@
-package shorturls
+package api
 
 import (
 	"context"
@@ -13,37 +13,36 @@ import (
 
 	"url-short/internal/database"
 	"url-short/internal/shortener"
-	"url-short/internal/transport/http/helper"
 )
 
-type handler struct {
+type shorturlHandler struct {
 	// temporary now to allow transport, service and repository layers to be decoupled
 	database *database.Queries
 	cache    *redis.Client
 }
 
-func NewShortUrlHandler(d *database.Queries, c *redis.Client) *handler {
-	return &handler{
+func NewShortUrlHandler(d *database.Queries, c *redis.Client) *shorturlHandler {
+	return &shorturlHandler{
 		database: d,
 		cache:    c,
 	}
 }
 
-type CreateShortURLHTTPRequestBody struct {
+type createShortURLHTTPRequestBody struct {
 	LongURL string `json:"long_url"`
 }
 
-type CreateShortURLHTTPResponseBody struct {
+type createShortURLHTTPResponseBody struct {
 	ShortURL string `json:"short_url"`
 }
 
-func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
-	payload := CreateShortURLHTTPRequestBody{}
+func (handler *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+	payload := createShortURLHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusBadRequest, "incorrect request fromat")
+		respondWithError(w, http.StatusBadRequest, "incorrect request fromat")
 		return
 	}
 
@@ -52,7 +51,7 @@ func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, u
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusBadRequest, "could not parse request URL")
+		respondWithError(w, http.StatusBadRequest, "could not parse request URL")
 		return
 	}
 
@@ -61,7 +60,7 @@ func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, u
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusInternalServerError, "could not resolve hash collision")
+		respondWithError(w, http.StatusInternalServerError, "could not resolve hash collision")
 		return
 	}
 
@@ -76,11 +75,11 @@ func (handler *handler) CreateShortURL(w http.ResponseWriter, r *http.Request, u
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusInternalServerError, "could not create short URL in database")
+		respondWithError(w, http.StatusInternalServerError, "could not create short URL in database")
 		return
 	}
 
-	helper.RespondWithJSON(w, http.StatusCreated, CreateShortURLHTTPResponseBody{
+	respondWithJSON(w, http.StatusCreated, createShortURLHTTPResponseBody{
 		ShortURL: shortenedURL.ShortUrl,
 	})
 }
@@ -107,11 +106,11 @@ func HashCollisionDetection(DB *database.Queries, url string, count int, request
 	return HashCollisionDetection(DB, url, count, requestContext)
 }
 
-func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
+func (handler *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	query := r.PathValue("shortUrl")
 
 	if query == "" {
-		helper.RespondWithError(w, http.StatusBadRequest, "no short url supplied")
+		respondWithError(w, http.StatusBadRequest, "no short url supplied")
 		return
 	}
 
@@ -125,7 +124,7 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Println(err)
-			helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+			respondWithError(w, http.StatusInternalServerError, "database error")
 			return
 		}
 
@@ -145,7 +144,7 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Println(err)
-			helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+			respondWithError(w, http.StatusInternalServerError, "database error")
 			return
 		}
 
@@ -159,7 +158,7 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Println(err)
-			helper.RespondWithError(w, http.StatusInternalServerError, "database error")
+			respondWithError(w, http.StatusInternalServerError, "database error")
 			return
 		}
 
@@ -171,11 +170,11 @@ func (handler *handler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, cacheVal, http.StatusMovedPermanently)
 }
 
-func (handler *handler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (handler *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
 	query := r.PathValue("shortUrl")
 
 	if query == "" {
-		helper.RespondWithError(w, http.StatusBadRequest, "no short url supplied")
+		respondWithError(w, http.StatusBadRequest, "no short url supplied")
 		return
 	}
 
@@ -186,36 +185,36 @@ func (handler *handler) DeleteShortURL(w http.ResponseWriter, r *http.Request, u
 
 	if err != nil {
 		log.Println(err)
-		helper.RespondWithError(w, http.StatusBadRequest, "could not delete short url")
+		respondWithError(w, http.StatusBadRequest, "could not delete short url")
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-type UpdateShortURLHTTPRequestBody struct {
+type updateShortURLHTTPRequestBody struct {
 	LongURL string `json:"long_url"`
 }
 
-type UpdateShortURLHTTPResponseBody struct {
+type updateShortURLHTTPResponseBody struct {
 	ShortURL string `json:"short_url"`
 	LongURL  string `json:"long_url"`
 }
 
-func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (handler *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
 	query := r.PathValue("shortUrl")
 
 	if query == "" {
-		helper.RespondWithError(w, http.StatusBadGateway, "no short url supplied")
+		respondWithError(w, http.StatusBadGateway, "no short url supplied")
 		return
 	}
 
-	payload := UpdateShortURLHTTPRequestBody{}
+	payload := updateShortURLHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusBadRequest, "invalid request body")
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
 	}
 
 	err = handler.database.UpdateShortURL(r.Context(), database.UpdateShortURLParams{
@@ -225,7 +224,7 @@ func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, u
 	})
 
 	if err != nil {
-		helper.RespondWithError(w, http.StatusInternalServerError, "could not update long url")
+		respondWithError(w, http.StatusInternalServerError, "could not update long url")
 		return
 	}
 
@@ -235,7 +234,7 @@ func (handler *handler) UpdateShortURL(w http.ResponseWriter, r *http.Request, u
 		log.Println(err)
 	}
 
-	helper.RespondWithJSON(w, http.StatusOK, UpdateShortURLHTTPResponseBody{
+	respondWithJSON(w, http.StatusOK, updateShortURLHTTPResponseBody{
 		LongURL:  payload.LongURL,
 		ShortURL: query,
 	})
