@@ -1,10 +1,27 @@
-package shortener
+package shorturl
 
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"net/url"
 	"strings"
 )
+
+type ShortUrl struct {
+	ShortUrl *url.URL
+	LongUrl  *url.URL
+}
+
+func NewShortUrl(longUrl string) (*ShortUrl, error) {
+	parsed, err := url.ParseRequestURI(longUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ShortUrl{
+		LongUrl: parsed,
+	}, nil
+}
 
 const urlHashPostfix = "Xa1"
 
