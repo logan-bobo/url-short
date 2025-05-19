@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 
 	"url-short/internal/database"
-	"url-short/internal/shortener"
+	"url-short/internal/domain/shorturl"
 )
 
 type shorturlHandler struct {
@@ -46,8 +45,7 @@ func (handler *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// TODO: Domain layer
-	url, err := url.ParseRequestURI(payload.LongURL)
+	url, err := shorturl.NewShortUrl(payload.LongURL)
 
 	if err != nil {
 		log.Println(err)
@@ -56,7 +54,7 @@ func (handler *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Re
 	}
 
 	// This should not really be the concern of the API layer
-	shortURLHash, err := HashCollisionDetection(handler.database, url.String(), 1, r.Context())
+	shortURLHash, err := HashCollisionDetection(handler.database, url.LongUrl.String(), 1, r.Context())
 
 	if err != nil {
 		log.Println(err)
@@ -66,7 +64,7 @@ func (handler *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Re
 
 	now := time.Now()
 	shortenedURL, err := handler.database.CreateURL(r.Context(), database.CreateURLParams{
-		LongUrl:   url.String(),
+		LongUrl:   url.LongUrl.String(),
 		ShortUrl:  shortURLHash,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -88,8 +86,8 @@ func (handler *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Re
 // Really we need a repo function that is accessed through a service layer the function this
 // function should not need to be concerned about a DB
 func HashCollisionDetection(DB *database.Queries, url string, count int, requestContext context.Context) (string, error) {
-	hashURL := shortener.Hash(url, count)
-	shortURLHash := shortener.Shorten(hashURL)
+	hashURL := shorturl.Hash(url, count)
+	shortURLHash := shorturl.Shorten(hashURL)
 
 	_, err := DB.SelectURL(requestContext, shortURLHash)
 
