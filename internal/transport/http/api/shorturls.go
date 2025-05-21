@@ -1,8 +1,6 @@
 package api
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -12,18 +10,23 @@ import (
 
 	"url-short/internal/database"
 	"url-short/internal/domain/shorturl"
+	"url-short/internal/service"
 )
 
 type shorturlHandler struct {
 	// temporary now to allow transport, service and repository layers to be decoupled
 	database *database.Queries
 	cache    *redis.Client
+	// this will be the final and ONLY field in the hanlder when I have moved to
+	// a layered architechure
+	urlService service.URLService
 }
 
-func NewShortUrlHandler(d *database.Queries, c *redis.Client) *shorturlHandler {
+func NewShortUrlHandler(d *database.Queries, c *redis.Client, s service.URLService) *shorturlHandler {
 	return &shorturlHandler{
-		database: d,
-		cache:    c,
+		database:   d,
+		cache:      c,
+		urlService: s,
 	}
 }
 
@@ -35,73 +38,31 @@ type createShortURLHTTPResponseBody struct {
 	ShortURL string `json:"short_url"`
 }
 
-func (handler *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
 	payload := createShortURLHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
-
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "incorrect request fromat")
 		return
 	}
 
-	url, err := shorturl.NewShortUrl(payload.LongURL)
-
+	createURLRequest, err := shorturl.NewCreateURLRequest(user.ID, payload.LongURL)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, "could not parse request URL")
 		return
 	}
 
-	// This should not really be the concern of the API layer
-	shortURLHash, err := HashCollisionDetection(handler.database, url.LongUrl.String(), 1, r.Context())
-
+	createURLResponse, err := h.urlService.CreateShortURL(r.Context(), *createURLRequest)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not resolve hash collision")
-		return
-	}
-
-	now := time.Now()
-	shortenedURL, err := handler.database.CreateURL(r.Context(), database.CreateURLParams{
-		LongUrl:   url.LongUrl.String(),
-		ShortUrl:  shortURLHash,
-		CreatedAt: now,
-		UpdatedAt: now,
-		UserID:    user.ID,
-	})
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not create short URL in database")
-		return
+		respondWithError(w, http.StatusInternalServerError, "This could be a few errors")
 	}
 
 	respondWithJSON(w, http.StatusCreated, createShortURLHTTPResponseBody{
-		ShortURL: shortenedURL.ShortUrl,
+		ShortURL: createURLResponse.ShortURL,
 	})
-}
-
-// TODO: this should be moved to the service or repo layer when they are created
-// Really we need a repo function that is accessed through a service layer the function this
-// function should not need to be concerned about a DB
-func HashCollisionDetection(DB *database.Queries, url string, count int, requestContext context.Context) (string, error) {
-	hashURL := shorturl.Hash(url, count)
-	shortURLHash := shorturl.Shorten(hashURL)
-
-	_, err := DB.SelectURL(requestContext, shortURLHash)
-
-	if err == sql.ErrNoRows {
-		return shortURLHash, nil
-	}
-
-	if err != nil && err != sql.ErrNoRows {
-		return "", err
-	}
-
-	count++
-
-	return HashCollisionDetection(DB, url, count, requestContext)
 }
 
 func (handler *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {

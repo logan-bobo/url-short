@@ -17,6 +17,8 @@ import (
 
 	"url-short/internal/configuration"
 	"url-short/internal/database"
+	"url-short/internal/repository"
+	"url-short/internal/service"
 )
 
 var (
@@ -99,6 +101,8 @@ type testApplication struct {
 	DB        *database.Queries
 	Cache     *redis.Client
 	JWTSecret string
+	Repo      repository.URLRepository
+	Service   service.URLService
 }
 
 func newTestApplication(s *configuration.ApplicationSettings) (*testApplication, error) {
@@ -144,6 +148,9 @@ func withTestApplication() (*testApplication, error) {
 	// Set the applications database to the randomly generated DB
 	// name from WithDB
 	app.DB = db
+
+	app.Repo = repository.NewPostgresURLRepository(app.DB)
+	app.Service = service.NewURLServiceImpl(app.Repo)
 
 	return app, nil
 }

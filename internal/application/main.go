@@ -10,6 +10,8 @@ import (
 
 	"url-short/internal/configuration"
 	"url-short/internal/database"
+	"url-short/internal/repository"
+	"url-short/internal/service"
 	"url-short/internal/transport/http/api"
 )
 
@@ -49,9 +51,12 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 		JWTSecret: s.Server.JwtSecret,
 	}
 
+	repo := repository.NewPostgresURLRepository(dbQueries)
+	service := service.NewURLServiceImpl(repo)
+
 	users := api.NewUserHandler(a.DB, a.JWTSecret)
 	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
-	urls := api.NewShortUrlHandler(a.DB, a.Cache)
+	urls := api.NewShortUrlHandler(a.DB, a.Cache, service)
 
 	// url management endpoints
 	mux.HandleFunc(
