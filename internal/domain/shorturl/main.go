@@ -1,40 +1,54 @@
 package shorturl
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"net/url"
-	"strings"
+	"time"
 )
 
-type ShortUrl struct {
-	ShortUrl *url.URL
-	LongUrl  *url.URL
+type URL struct {
+	ID int32
+	// TODO: Make ShortURL type
+	ShortURL  string
+	LongURL   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	UserID    int32
 }
 
-func NewShortUrl(longUrl string) (*ShortUrl, error) {
-	parsed, err := url.ParseRequestURI(longUrl)
+func NewLongURL(URL string) (*string, error) {
+	_, err := url.ParseRequestURI(URL)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ShortUrl{
-		LongUrl: parsed,
+	return &URL, nil
+}
+
+func NewUrl(longURL string) (*URL, error) {
+	parsed, err := NewLongURL(longURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &URL{
+		LongURL: *parsed,
 	}, nil
 }
 
-const urlHashPostfix = "Xa1"
-
-func Hash(inputString string, postfixCount int) string {
-	hash := md5.Sum([]byte(inputString + strings.Repeat(urlHashPostfix, postfixCount)))
-
-	return hex.EncodeToString(hash[:])
+type CreateURLRequest struct {
+	UserID   int32
+	LongURL  string
+	ShortURL string
 }
 
-func Shorten(hashToShorten string) string {
-	if len(hashToShorten) < 8 {
-		return hashToShorten
+func NewCreateURLRequest(userID int32, URL string) (*CreateURLRequest, error) {
+	parsed, err := NewLongURL(URL)
+	if err != nil {
+		return nil, err
 	}
 
-	return hashToShorten[:7]
+	return &CreateURLRequest{
+		UserID:  userID,
+		LongURL: *parsed,
+	}, nil
 }
