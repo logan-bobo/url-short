@@ -21,11 +21,11 @@ type URLService interface {
 }
 
 type URLServiceImpl struct {
-	urlRepo repository.URLRepository
-	// cacheRepo repository.CacheRepository
+	urlRepo   repository.URLRepository
+	cacheRepo repository.CacheRepository
 }
 
-func NewURLServiceImpl(r repository.URLRepository) *URLServiceImpl {
+func NewURLServiceImpl(r repository.URLRepository, c repository.CacheRepository) *URLServiceImpl {
 	return &URLServiceImpl{
 		urlRepo: r,
 	}
