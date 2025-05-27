@@ -98,11 +98,12 @@ func withDB() (*database.Queries, error) {
 }
 
 type testApplication struct {
-	DB        *database.Queries
-	Cache     *redis.Client
-	JWTSecret string
-	Repo      repository.URLRepository
-	Service   service.URLService
+	DB               *database.Queries
+	Cache            *redis.Client
+	JWTSecret        string
+	CacheRepo        repository.CacheRepository
+	DatabaseBaseRepo repository.URLRepository
+	Service          service.URLService
 }
 
 func newTestApplication(s *configuration.ApplicationSettings) (*testApplication, error) {
@@ -149,8 +150,9 @@ func withTestApplication() (*testApplication, error) {
 	// name from WithDB
 	app.DB = db
 
-	app.Repo = repository.NewPostgresURLRepository(app.DB)
-	app.Service = service.NewURLServiceImpl(app.Repo)
+	app.DatabaseBaseRepo = repository.NewPostgresURLRepository(app.DB)
+	app.CacheRepo = repository.NewCacheRedis(app.Cache)
+	app.Service = service.NewURLServiceImpl(app.DatabaseBaseRepo, app.CacheRepo)
 
 	return app, nil
 }
