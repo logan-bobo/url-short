@@ -2,9 +2,11 @@ package user
 
 import (
 	"errors"
-	"golang.org/x/crypto/bcrypt"
+	"log"
 	"net/mail"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -23,8 +25,8 @@ func NewUser(email, password string) (*User, error) {
 	}
 
 	parsedEmail, err := mail.ParseAddress(email)
-
 	if err != nil {
+		log.Println(err)
 		return nil, errors.New("could not create user: invalid email")
 	}
 

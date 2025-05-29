@@ -57,6 +57,8 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 	createURLResponse, err := h.urlService.CreateShortURL(r.Context(), *createURLRequest)
 	if err != nil {
 		log.Println(err)
+		// respond with error should be able to deal with a unique key violation, not found or intenral
+		// server error
 		respondWithError(w, http.StatusInternalServerError, "This could be a few errors")
 	}
 
@@ -65,68 +67,20 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 	})
 }
 
-func (handler *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {
-	query := r.PathValue("shortUrl")
+func (h *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {
+	shortURL := r.PathValue("shortUrl")
 
-	if query == "" {
+	if shortURL == "" {
 		respondWithError(w, http.StatusBadRequest, "no short url supplied")
 		return
 	}
 
-	cacheVal, err := handler.cache.Get(r.Context(), query).Result()
-
-	switch {
-	case err == redis.Nil:
-		log.Printf("cache miss, key %s does not exists, writing to redis", query)
-
-		row, err := handler.database.SelectURL(r.Context(), query)
-
-		if err != nil {
-			log.Println(err)
-			respondWithError(w, http.StatusInternalServerError, "database error")
-			return
-		}
-
-		err = handler.cache.Set(r.Context(), query, row.LongUrl, (time.Hour * 1)).Err()
-
-		if err != nil {
-			log.Printf("could not write to redis cache %s", err)
-		}
-
-		http.Redirect(w, r, row.LongUrl, http.StatusMovedPermanently)
-		return
-
-	case err != nil:
-		log.Println(err)
-
-		row, err := handler.database.SelectURL(r.Context(), query)
-
-		if err != nil {
-			log.Println(err)
-			respondWithError(w, http.StatusInternalServerError, "database error")
-			return
-		}
-
-		http.Redirect(w, r, row.LongUrl, http.StatusMovedPermanently)
-		return
-
-	case cacheVal == "":
-		log.Printf("key %s does not have a value", query)
-
-		row, err := handler.database.SelectURL(r.Context(), query)
-
-		if err != nil {
-			log.Println(err)
-			respondWithError(w, http.StatusInternalServerError, "database error")
-			return
-		}
-
-		http.Redirect(w, r, row.LongUrl, http.StatusMovedPermanently)
-		return
+	url, err := h.urlService.GetLongURL(r.Context(), shortURL)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "This could be a few errors")
 	}
 
-	log.Printf("cache hit for key %s", cacheVal)
-	http.Redirect(w, r, cacheVal, http.StatusMovedPermanently)
+	http.Redirect(w, r, url.LongURL, http.StatusMovedPermanently)
 }
 
 func (handler *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {

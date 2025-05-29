@@ -60,6 +60,8 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
 	urls := api.NewShortUrlHandler(a.DB, a.Cache, service)
 
+	mux.HandleFunc("GET /api/v1/healthz", api.GetHealth)
+
 	// url management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/data/shorten",

@@ -32,7 +32,7 @@ func NewUserHandler(database *database.Queries, JWTSecret string) *userHandler {
 
 type createUserHTTPRequestBody struct {
 	Email    string `json:"email"`
-	Password string `json:"Password"`
+	Password string `json:"password"`
 }
 
 type createUserHTTPResponseBody struct {
