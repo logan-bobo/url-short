@@ -51,12 +51,16 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 		JWTSecret: s.Server.JwtSecret,
 	}
 
-	repo := repository.NewPostgresURLRepository(dbQueries)
-	service := service.NewURLServiceImpl(repo)
+	databaseRepo := repository.NewPostgresURLRepository(dbQueries)
+	cacheRepo := repository.NewCacheRedis(redisClient)
+
+	service := service.NewURLServiceImpl(databaseRepo, cacheRepo)
 
 	users := api.NewUserHandler(a.DB, a.JWTSecret)
 	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
 	urls := api.NewShortUrlHandler(a.DB, a.Cache, service)
+
+	mux.HandleFunc("GET /api/v1/healthz", api.GetHealth)
 
 	// url management endpoints
 	mux.HandleFunc(

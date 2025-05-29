@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"url-short/internal/database"
@@ -56,6 +57,7 @@ func (r *PostgresURLRepository) GetURLByHash(
 ) (*shorturl.URL, error) {
 	res, err := r.db.SelectURL(ctx, hash)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 

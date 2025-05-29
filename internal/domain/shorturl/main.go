@@ -52,3 +52,30 @@ func NewCreateURLRequest(userID int32, URL string) (*CreateURLRequest, error) {
 		LongURL: *parsed,
 	}, nil
 }
+
+type URLError struct {
+	Code    string
+	Message string
+}
+
+type URLValidationError struct {
+	URLError
+}
+
+func NewValidationError(code, msg string) *URLValidationError {
+	return &URLValidationError{URLError{
+		Code:    code,
+		Message: msg,
+	}}
+}
+
+type URLNotFoundError struct {
+	URLError
+}
+
+func NewNotFoundError(code, msg string) *URLNotFoundError {
+	return &URLNotFoundError{URLError{
+		Code:    code,
+		Message: msg,
+	}}
+}
