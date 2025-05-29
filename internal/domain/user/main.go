@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"log"
 	"net/mail"
 	"time"
 
@@ -26,7 +25,6 @@ func NewUser(email, password string) (*User, error) {
 
 	parsedEmail, err := mail.ParseAddress(email)
 	if err != nil {
-		log.Println(err)
 		return nil, errors.New("could not create user: invalid email")
 	}
 
