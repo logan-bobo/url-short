@@ -28,7 +28,7 @@ func TestPostLongURL(t *testing.T) {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := NewShortUrlHandler(app.DB, app.Cache, app.Service)
+	urls := NewShortUrlHandler(app.Service)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
 		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(LongUrl))
@@ -85,7 +85,7 @@ func TestGetShortURL(t *testing.T) {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := NewShortUrlHandler(app.DB, app.Cache, app.Service)
+	urls := NewShortUrlHandler(app.Service)
 
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
