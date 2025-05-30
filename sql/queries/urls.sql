@@ -13,8 +13,9 @@ DELETE FROM urls
 WHERE user_id = $1 AND 
 short_url = $2;
 
--- name: UpdateShortURL :exec
+-- name: UpdateShortURL :one
 UPDATE urls
 SET long_url = $1
 WHERE user_id = $2 AND 
-short_url = $3;
+short_url = $3
+RETURNING *;

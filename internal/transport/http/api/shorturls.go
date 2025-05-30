@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 
@@ -114,11 +113,11 @@ type updateShortURLHTTPResponseBody struct {
 	LongURL  string `json:"long_url"`
 }
 
-func (handler *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
 	query := r.PathValue("shortUrl")
 
 	if query == "" {
-		respondWithError(w, http.StatusBadGateway, "no short url supplied")
+		respondWithError(w, http.StatusBadRequest, "no short url supplied")
 		return
 	}
 
@@ -130,25 +129,16 @@ func (handler *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Re
 		respondWithError(w, http.StatusBadRequest, "invalid request body")
 	}
 
-	err = handler.database.UpdateShortURL(r.Context(), database.UpdateShortURLParams{
-		UserID:   user.ID,
-		ShortUrl: query,
-		LongUrl:  payload.LongURL,
-	})
+	req := shorturl.NewUpdateURLRequest(user.ID, query, payload.LongURL)
+
+	url, err := h.urlService.UpdateShortURL(r.Context(), *req)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not update long url")
-		return
-	}
-
-	err = handler.cache.Set(r.Context(), query, payload.LongURL, (time.Hour * 1)).Err()
-
-	if err != nil {
-		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, "this could be a few errors come back to handle")
 	}
 
 	respondWithJSON(w, http.StatusOK, updateShortURLHTTPResponseBody{
-		LongURL:  payload.LongURL,
-		ShortURL: query,
+		LongURL:  url.LongURL,
+		ShortURL: url.ShortURL,
 	})
 }

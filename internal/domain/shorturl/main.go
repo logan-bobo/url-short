@@ -65,6 +65,20 @@ func NewDeleteURLRequest(userID int32, URL string) *DeleteURLRequest {
 	}
 }
 
+type UpdateURLRequest struct {
+	UserID   int32
+	ShortURL string
+	LongURL  string
+}
+
+func NewUpdateURLRequest(userID int32, shortURL string, longURL string) *UpdateURLRequest {
+	return &UpdateURLRequest{
+		UserID:   userID,
+		ShortURL: shortURL,
+		LongURL:  longURL,
+	}
+}
+
 type URLError struct {
 	Code    string
 	Message string
