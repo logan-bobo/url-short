@@ -22,7 +22,7 @@ type URLService interface {
 	GenerateUniqueShortURL(ctx context.Context, longURL string) (string, error)
 	GetLongURL(ctx context.Context, shortURL string) (*shorturl.URL, error)
 	// UpdateShortURL(ctx context.Context, url shorturl.UpdateURLRequest) error
-	// DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error
+	DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error
 }
 
 type URLServiceImpl struct {
@@ -143,4 +143,11 @@ func (s *URLServiceImpl) GetLongURL(ctx context.Context, shortURL string) (*shor
 	}
 
 	return &shorturl.URL{LongURL: url}, nil
+}
+
+func (s *URLServiceImpl) DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error {
+	if err := s.urlRepo.DeleteShortURL(ctx, url); err != nil {
+		return err
+	}
+	return nil
 }
