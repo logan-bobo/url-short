@@ -5,26 +5,17 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/redis/go-redis/v9"
-
 	"url-short/internal/database"
 	"url-short/internal/domain/shorturl"
 	"url-short/internal/service"
 )
 
 type shorturlHandler struct {
-	// temporary now to allow transport, service and repository layers to be decoupled
-	database *database.Queries
-	cache    *redis.Client
-	// this will be the final and ONLY field in the hanlder when I have moved to
-	// a layered architechure
 	urlService service.URLService
 }
 
-func NewShortUrlHandler(d *database.Queries, c *redis.Client, s service.URLService) *shorturlHandler {
+func NewShortUrlHandler(s service.URLService) *shorturlHandler {
 	return &shorturlHandler{
-		database:   d,
-		cache:      c,
 		urlService: s,
 	}
 }
