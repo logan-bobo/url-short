@@ -53,6 +53,18 @@ func NewCreateURLRequest(userID int32, URL string) (*CreateURLRequest, error) {
 	}, nil
 }
 
+type DeleteURLRequest struct {
+	UserID   int32
+	ShortURL string
+}
+
+func NewDeleteURLRequest(userID int32, URL string) *DeleteURLRequest {
+	return &DeleteURLRequest{
+		UserID:   userID,
+		ShortURL: URL,
+	}
+}
+
 type URLError struct {
 	Code    string
 	Message string

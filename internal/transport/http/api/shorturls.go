@@ -83,21 +83,21 @@ func (h *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url.LongURL, http.StatusMovedPermanently)
 }
 
-func (handler *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
-	query := r.PathValue("shortUrl")
+func (h *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+	shortUrl := r.PathValue("shortUrl")
 
-	if query == "" {
+	if shortUrl == "" {
 		respondWithError(w, http.StatusBadRequest, "no short url supplied")
 		return
 	}
 
-	err := handler.database.DeleteURL(r.Context(), database.DeleteURLParams{
-		UserID:   user.ID,
-		ShortUrl: query,
-	})
+	req := shorturl.NewDeleteURLRequest(user.ID, shortUrl)
+
+	err := h.urlService.DeleteShortURL(r.Context(), *req)
 
 	if err != nil {
 		log.Println(err)
+		// TODO: multiple errors could bubble up here handle them!
 		respondWithError(w, http.StatusBadRequest, "could not delete short url")
 		return
 	}

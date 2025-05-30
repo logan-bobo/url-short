@@ -12,7 +12,7 @@ type URLRepository interface {
 	CreateShortURL(ctx context.Context, request shorturl.CreateURLRequest) (*shorturl.URL, error)
 	GetURLByHash(ctx context.Context, hash string) (*shorturl.URL, error)
 	// UpdateShortURL(ctx context.Context, url shorturl.UpdateURLRequest) error
-	// DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error
+	DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error
 }
 
 type PostgresURLRepository struct {
@@ -67,4 +67,17 @@ func (r *PostgresURLRepository) GetURLByHash(
 		UpdatedAt: res.UpdatedAt,
 		UserID:    res.UserID,
 	}, nil
+}
+
+func (r *PostgresURLRepository) DeleteShortURL(
+	ctx context.Context,
+	url shorturl.DeleteURLRequest,
+) error {
+	if err := r.db.DeleteURL(ctx, database.DeleteURLParams{
+		UserID:   url.UserID,
+		ShortUrl: url.ShortURL,
+	}); err != nil {
+		return err
+	}
+	return nil
 }
