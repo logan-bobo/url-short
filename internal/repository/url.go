@@ -11,7 +11,7 @@ import (
 type URLRepository interface {
 	CreateShortURL(ctx context.Context, request shorturl.CreateURLRequest) (*shorturl.URL, error)
 	GetURLByHash(ctx context.Context, hash string) (*shorturl.URL, error)
-	// UpdateShortURL(ctx context.Context, url shorturl.UpdateURLRequest) error
+	UpdateShortURL(ctx context.Context, url shorturl.UpdateURLRequest) (*shorturl.URL, error)
 	DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error
 }
 
@@ -80,4 +80,29 @@ func (r *PostgresURLRepository) DeleteShortURL(
 		return err
 	}
 	return nil
+}
+
+func (r *PostgresURLRepository) UpdateShortURL(
+	ctx context.Context,
+	url shorturl.UpdateURLRequest,
+) (*shorturl.URL, error) {
+	// TODO: update the query to use updated at and update the field in the repo
+	res, err := r.db.UpdateShortURL(ctx, database.UpdateShortURLParams{
+		UserID:   url.UserID,
+		ShortUrl: url.ShortURL,
+		LongUrl:  url.LongURL,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &shorturl.URL{
+		ID:        res.ID,
+		ShortURL:  res.ShortUrl,
+		LongURL:   res.LongUrl,
+		CreatedAt: res.CreatedAt,
+		UpdatedAt: res.UpdatedAt,
+		UserID:    res.UserID,
+	}, nil
 }

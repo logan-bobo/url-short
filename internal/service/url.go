@@ -21,7 +21,7 @@ type URLService interface {
 	CreateShortURL(ctx context.Context, request shorturl.CreateURLRequest) (*shorturl.URL, error)
 	GenerateUniqueShortURL(ctx context.Context, longURL string) (string, error)
 	GetLongURL(ctx context.Context, shortURL string) (*shorturl.URL, error)
-	// UpdateShortURL(ctx context.Context, url shorturl.UpdateURLRequest) error
+	UpdateShortURL(ctx context.Context, url shorturl.UpdateURLRequest) (*shorturl.URL, error)
 	DeleteShortURL(ctx context.Context, url shorturl.DeleteURLRequest) error
 }
 
@@ -150,4 +150,24 @@ func (s *URLServiceImpl) DeleteShortURL(ctx context.Context, url shorturl.Delete
 		return err
 	}
 	return nil
+}
+
+func (s *URLServiceImpl) UpdateShortURL(ctx context.Context, request shorturl.UpdateURLRequest) (*shorturl.URL, error) {
+	url, err := s.urlRepo.UpdateShortURL(ctx, request)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.cacheRepo.InsertURL(ctx, url.ShortURL, url.LongURL, (time.Hour * 1))
+
+	if err != nil {
+		// failing to persist to the cache? How to handle this?
+		// initial thought is just to log and you would have some metrics
+		// for cache persistence failure that you would alert on
+		// this shouldnt stop the request and return an error
+		log.Println(err)
+	}
+
+	return url, nil
 }
