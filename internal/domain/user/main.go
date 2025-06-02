@@ -9,13 +9,13 @@ import (
 )
 
 type User struct {
-	id                     int32
-	email                  mail.Address
-	passwordHash           []byte
-	createdAt              time.Time
-	updatedAt              time.Time
-	refreshToken           string
-	refreshTokenRevokeDate time.Time
+	Id                     int32
+	Email                  string
+	PasswordHash           []byte
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	RefreshToken           string
+	RefreshTokenRevokeDate time.Time
 }
 
 func NewUser(email, password string) (*User, error) {
@@ -23,7 +23,7 @@ func NewUser(email, password string) (*User, error) {
 		return nil, errors.New("could not create user: empty email")
 	}
 
-	parsedEmail, err := mail.ParseAddress(email)
+	_, err := mail.ParseAddress(email)
 	if err != nil {
 		return nil, errors.New("could not create user: invalid email")
 	}
@@ -41,44 +41,30 @@ func NewUser(email, password string) (*User, error) {
 		return nil, errors.New("could not create user: failure to hash password")
 	}
 
-	now := time.Now()
-
 	return &User{
-		email:        *parsedEmail,
-		passwordHash: passwordHash,
-		createdAt:    now,
-		updatedAt:    now,
+		Email:        email,
+		PasswordHash: passwordHash,
 	}, nil
 }
 
-func (u *User) ID() int32 {
-	return u.id
+func (u *User) GetPasswordHash() string {
+	return string(u.PasswordHash)
 }
 
-func (u *User) SetID(id int32) {
-	u.id = id
+// TODO: Getters
+type CreateUserRequest struct {
+	Email        string
+	PasswordHash string
 }
 
-func (u *User) Email() string {
-	return u.email.Address
-}
+func NewCreateUserRequest(email, password string) (*CreateUserRequest, error) {
+	user, err := NewUser(email, password)
+	if err != nil {
+		return nil, err
+	}
 
-func (u *User) PasswordHash() string {
-	return string(u.passwordHash)
-}
-
-func (u *User) CreatedAt() time.Time {
-	return u.createdAt
-}
-
-func (u *User) UpdatedAt() time.Time {
-	return u.updatedAt
-}
-
-func (u *User) RefreshToken() string {
-	return u.refreshToken
-}
-
-func (u *User) RefreshTokenRevokeDate() time.Time {
-	return u.refreshTokenRevokeDate
+	return &CreateUserRequest{
+		Email:        user.Email,
+		PasswordHash: user.GetPasswordHash(),
+	}, nil
 }

@@ -19,7 +19,7 @@ func TestPostUser(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
 		userOne, err := setupUserOne(app)
@@ -115,7 +115,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "could not create user in database"
+		want := "could not create user"
 		if got.Error != want {
 			t.Errorf("expected duplicate user to fail got %q wanted %q", got.Error, want)
 		}
@@ -128,7 +128,7 @@ func TestPostLogin(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
 
 	_, err = setupUserOne(app)
 
@@ -230,7 +230,7 @@ func TestRefreshEndpoint(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
 
 	_, err = setupUserOne(app)
 
@@ -274,7 +274,7 @@ func TestPutUser(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
 
 	_, err = setupUserOne(app)
 

@@ -53,12 +53,14 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 
 	databaseRepo := repository.NewPostgresURLRepository(dbQueries)
 	cacheRepo := repository.NewCacheRedis(redisClient)
+	userRepo := repository.NewPostgresUserRepository(dbQueries)
 
-	service := service.NewURLServiceImpl(databaseRepo, cacheRepo)
+	URLservice := service.NewURLServiceImpl(databaseRepo, cacheRepo)
+	UserService := service.NewUserServiceImpl(userRepo)
 
-	users := api.NewUserHandler(a.DB, a.JWTSecret)
+	users := api.NewUserHandler(a.DB, a.JWTSecret, UserService)
 	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
-	urls := api.NewShortUrlHandler(service)
+	urls := api.NewShortUrlHandler(URLservice)
 
 	mux.HandleFunc("GET /api/v1/healthz", api.GetHealth)
 

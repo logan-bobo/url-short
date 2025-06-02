@@ -15,18 +15,20 @@ import (
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
+	"url-short/internal/service"
 )
 
 type userHandler struct {
-	// temporary now to allow transport, service and repository layers to be decoupled
-	database  *database.Queries
-	JWTSecret string
+	database    *database.Queries
+	JWTSecret   string
+	userService service.UserService
 }
 
-func NewUserHandler(database *database.Queries, JWTSecret string) *userHandler {
+func NewUserHandler(database *database.Queries, JWTSecret string, userService service.UserService) *userHandler {
 	return &userHandler{
-		database:  database,
-		JWTSecret: JWTSecret,
+		database:    database,
+		JWTSecret:   JWTSecret,
+		userService: userService,
 	}
 }
 
@@ -36,8 +38,10 @@ type createUserHTTPRequestBody struct {
 }
 
 type createUserHTTPResponseBody struct {
-	ID    int32  `json:"id"`
-	Email string `json:"email"`
+	ID        int32  `json:"id"`
+	Email     string `json:"email"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 func (handler *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -50,29 +54,25 @@ func (handler *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	domainUser, err := user.NewUser(payload.Email, payload.Password)
-
+	createUserRequest, err := user.NewCreateUserRequest(payload.Email, payload.Password)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	user, err := handler.database.CreateUser(r.Context(), database.CreateUserParams{
-		Email:     domainUser.Email(),
-		Password:  domainUser.PasswordHash(),
-		CreatedAt: domainUser.CreatedAt(),
-		UpdatedAt: domainUser.UpdatedAt(),
-	})
-
+	res, err := handler.userService.CreateUser(r.Context(), *createUserRequest)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not create user in database")
+		respondWithError(w, http.StatusInternalServerError, "could not create user")
+		return
 	}
 
 	respondWithJSON(w, http.StatusCreated, createUserHTTPResponseBody{
-		ID:    user.ID,
-		Email: user.Email,
+		ID:        res.Id,
+		Email:     res.Email,
+		CreatedAt: res.CreatedAt.String(),
+		UpdatedAt: res.UpdatedAt.String(),
 	})
 }
 
@@ -239,12 +239,13 @@ func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, a
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
-	domainUser.SetID(authUser.ID)
+
+	domainUser.Id = authUser.ID
 
 	err = handler.database.UpdateUser(r.Context(), database.UpdateUserParams{
-		Email:     domainUser.Email(),
-		Password:  domainUser.PasswordHash(),
-		ID:        domainUser.ID(),
+		Email:     domainUser.Email,
+		Password:  domainUser.GetPasswordHash(),
+		ID:        domainUser.Id,
 		UpdatedAt: time.Now(),
 	})
 
@@ -254,6 +255,6 @@ func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, a
 
 	respondWithJSON(w, http.StatusOK, updateUserHTTPResponseBody{
 		Email: payload.Email,
-		ID:    domainUser.ID(),
+		ID:    domainUser.Id,
 	})
 }
