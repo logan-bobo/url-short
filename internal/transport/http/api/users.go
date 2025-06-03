@@ -1,9 +1,7 @@
 package api
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,7 +9,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
@@ -92,79 +89,28 @@ func (handler *userHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	payload := loginUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
-
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "could not parse request")
 		return
 	}
 
-	if payload.Email == "" || payload.Password == "" {
-		respondWithError(w, http.StatusBadRequest, "invalid parameters for user login")
-	}
-
-	// This should all be hidden behind a service and data access layer
-	user, err := handler.database.SelectUser(r.Context(), payload.Email)
-
-	if err == sql.ErrNoRows {
-		respondWithError(w, http.StatusNotFound, "could not find user")
+	loginUserRequest, err := user.NewLoginUserRequest(payload.Email, payload.Password)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	res, err := handler.userService.LoginUser(r.Context(), *loginUserRequest)
 	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "database error")
-		return
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password))
-
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid password")
-		return
-	}
-
-	registeredClaims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "url-short-auth",
-		Subject:   strconv.Itoa(int(user.ID)),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
-
-	signedToken, err := token.SignedString([]byte(handler.JWTSecret))
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "can not create JWT")
-		return
-	}
-
-	byteSlice := make([]byte, 32)
-	_, err = rand.Read(byteSlice)
-	refreshToken := hex.EncodeToString(byteSlice)
-
-	if err != nil {
-		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "can not generate refresh token")
-		return
-	}
-
-	err = handler.database.UserTokenRefresh(r.Context(), database.UserTokenRefreshParams{
-		RefreshToken:           sql.NullString{String: refreshToken, Valid: true},
-		RefreshTokenRevokeDate: sql.NullTime{Time: time.Now().Add(60 * (24 * time.Hour)), Valid: true},
-		ID:                     user.ID,
-	})
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "can not update user with refresh token")
+		respondWithError(w, http.StatusInternalServerError, "could be lots of errors need to handle")
 		return
 	}
 
 	respondWithJSON(w, http.StatusFound, loginUserHTTPResponseBody{
-		ID:           user.ID,
-		Email:        user.Email,
-		Token:        signedToken,
-		RefreshToken: refreshToken,
+		ID:           res.Id,
+		Email:        res.Email,
+		Token:        res.Token,
+		RefreshToken: res.RefreshToken,
 	})
 }
 

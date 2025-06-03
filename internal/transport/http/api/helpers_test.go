@@ -98,13 +98,14 @@ func withDB() (*database.Queries, error) {
 }
 
 type testApplication struct {
-	DB        *database.Queries
-	Cache     *redis.Client
-	JWTSecret string
-	CacheRepo repository.CacheRepository
-	URLRepo   repository.URLRepository
-	UserRepo  repository.UserRepository
-	Service   service.URLService
+	DB          *database.Queries
+	Cache       *redis.Client
+	JWTSecret   string
+	CacheRepo   repository.CacheRepository
+	URLRepo     repository.URLRepository
+	UserRepo    repository.UserRepository
+	URLService  service.URLService
+	UserService service.UserService
 }
 
 func newTestApplication(s *configuration.ApplicationSettings) (*testApplication, error) {
@@ -154,7 +155,8 @@ func withTestApplication() (*testApplication, error) {
 	app.UserRepo = repository.NewPostgresUserRepository(app.DB)
 	app.URLRepo = repository.NewPostgresURLRepository(app.DB)
 	app.CacheRepo = repository.NewCacheRedis(app.Cache)
-	app.Service = service.NewURLServiceImpl(app.URLRepo, app.CacheRepo)
+	app.URLService = service.NewURLServiceImpl(app.URLRepo, app.CacheRepo)
+	app.UserService = service.NewUserServiceImpl(app.UserRepo, app.JWTSecret)
 
 	return app, nil
 }
@@ -170,7 +172,7 @@ func setupUserOne(a *testApplication) (*createUserHTTPResponseBody, error) {
 
 	response := httptest.NewRecorder()
 
-	userHandler := NewUserHandler(a.DB, a.JWTSecret, a.UserRepo)
+	userHandler := NewUserHandler(a.DB, a.JWTSecret, a.UserService)
 	userHandler.CreateUser(response, request)
 
 	got := createUserHTTPResponseBody{}
@@ -190,7 +192,7 @@ func loginUserOne(a *testApplication) (*loginUserHTTPResponseBody, error) {
 
 	loginResponse := httptest.NewRecorder()
 
-	userHandler := NewUserHandler(a.DB, a.JWTSecret, a.UserRepo)
+	userHandler := NewUserHandler(a.DB, a.JWTSecret, a.UserService)
 	userHandler.LoginUser(loginResponse, loginRequest)
 
 	loginGot := loginUserHTTPResponseBody{}

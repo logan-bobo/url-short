@@ -28,7 +28,7 @@ func TestPostLongURL(t *testing.T) {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := NewShortUrlHandler(app.Service)
+	urls := NewShortUrlHandler(app.URLService)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
 		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(LongUrl))
@@ -47,7 +47,7 @@ func TestPostLongURL(t *testing.T) {
 		// As there are no hashes in the database there is no chance of a collision
 		// the first hash we generate here and the hash in the call to the handler will
 		// always be the same so we compare the two
-		hash, err := app.Service.GenerateUniqueShortURL(postLongURLRequest.Context(), "www.google.com")
+		hash, err := app.URLService.GenerateUniqueShortURL(postLongURLRequest.Context(), "www.google.com")
 
 		if err != nil {
 			t.Errorf("could not generate hash err %q", err)
@@ -85,7 +85,7 @@ func TestGetShortURL(t *testing.T) {
 		t.Errorf("can not login user one for test case with err %q", err)
 	}
 
-	urls := NewShortUrlHandler(app.Service)
+	urls := NewShortUrlHandler(app.URLService)
 
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
