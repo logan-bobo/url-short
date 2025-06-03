@@ -14,6 +14,7 @@ type User struct {
 	PasswordHash           []byte
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
+	Token                  string
 	RefreshToken           string
 	RefreshTokenRevokeDate time.Time
 }
@@ -66,5 +67,21 @@ func NewCreateUserRequest(email, password string) (*CreateUserRequest, error) {
 	return &CreateUserRequest{
 		Email:        user.Email,
 		PasswordHash: user.GetPasswordHash(),
+	}, nil
+}
+
+type LoginUserRequest struct {
+	Email    string
+	Password string
+}
+
+func NewLoginUserRequest(email, password string) (*LoginUserRequest, error) {
+	if email == "" || password == "" {
+		return nil, errors.New("email or password must not be empty")
+	}
+
+	return &LoginUserRequest{
+		Email:    email,
+		Password: password,
 	}, nil
 }

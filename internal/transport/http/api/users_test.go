@@ -19,7 +19,7 @@ func TestPostUser(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
 		userOne, err := setupUserOne(app)
@@ -128,7 +128,7 @@ func TestPostLogin(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
 
 	_, err = setupUserOne(app)
 
@@ -152,7 +152,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "invalid parameters for user login"
+		want := "email or password must not be empty"
 		if got.Error != want {
 			t.Errorf("incorrect error when passing invalid login parameters got %q want %q", got.Error, want)
 		}
@@ -174,7 +174,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "could not find user"
+		want := "could be lots of errors need to handle"
 		if got.Error != want {
 			t.Errorf("incorrect error when non existent user attempts to login got %q want %q", got.Error, want)
 		}
@@ -196,7 +196,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "invalid password"
+		want := "could be lots of errors need to handle"
 		if got.Error != want {
 			t.Errorf("incorrect error when incorrect password is supplied got %q want %q", got.Error, want)
 		}
@@ -230,7 +230,7 @@ func TestRefreshEndpoint(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
 
 	_, err = setupUserOne(app)
 
@@ -274,7 +274,7 @@ func TestPutUser(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserRepo)
+	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
 
 	_, err = setupUserOne(app)
 

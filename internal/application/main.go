@@ -56,7 +56,7 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 	userRepo := repository.NewPostgresUserRepository(dbQueries)
 
 	URLservice := service.NewURLServiceImpl(databaseRepo, cacheRepo)
-	UserService := service.NewUserServiceImpl(userRepo)
+	UserService := service.NewUserServiceImpl(userRepo, a.JWTSecret)
 
 	users := api.NewUserHandler(a.DB, a.JWTSecret, UserService)
 	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
