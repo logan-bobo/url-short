@@ -1,14 +1,10 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
@@ -115,7 +111,6 @@ func (handler *userHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 type refreshAccessTokenHTTPResponseBody struct {
-	// TODO: getter!
 	AccessToken string `json:"token"`
 }
 
@@ -127,36 +122,15 @@ func (handler *userHandler) RefreshAccessToken(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	user, err := handler.database.SelectUserByRefreshToken(r.Context(), sql.NullString{String: requestToken, Valid: true})
+	user, err := handler.userService.RefreshAccessToken(r.Context(), requestToken)
 
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "can not refresh token no user found")
-		return
-	}
-
-	if time.Now().After(user.RefreshTokenRevokeDate.Time) {
-		respondWithError(w, http.StatusUnauthorized, "refresh token expired, please login again")
-		return
-	}
-
-	registeredClaims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Issuer:    "url-short-auth",
-		Subject:   strconv.Itoa(int(user.ID)),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
-
-	signedToken, err := token.SignedString([]byte(handler.JWTSecret))
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "can not create JWT")
+		respondWithError(w, http.StatusInternalServerError, "could not refresh access token")
 		return
 	}
 
 	respondWithJSON(w, http.StatusCreated, refreshAccessTokenHTTPResponseBody{
-		AccessToken: signedToken,
+		AccessToken: user.Token,
 	})
 }
 
