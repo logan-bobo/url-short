@@ -12,6 +12,7 @@ import (
 type UserRepository interface {
 	CreateUser(ctx context.Context, request user.CreateUserRequest) (*user.User, error)
 	SelectUser(ctx context.Context, email string) (*user.User, error)
+	SelectUserByRefreshToken(ctx context.Context, email string) (*user.User, error)
 	UpdateRefreshToken(ctx context.Context, refreshToken string, userID int32) error
 }
 
@@ -78,4 +79,20 @@ func (r *PostgresUserRepository) UpdateRefreshToken(ctx context.Context, refresh
 	}
 
 	return nil
+}
+
+func (r *PostgresUserRepository) SelectUserByRefreshToken(ctx context.Context, refreshToken string) (*user.User, error) {
+	res, err := r.db.SelectUserByRefreshToken(ctx, sql.NullString{String: refreshToken, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+
+	return &user.User{
+		Id:                     res.ID,
+		Email:                  res.Email,
+		PasswordHash:           []byte(res.Password),
+		CreatedAt:              res.CreatedAt,
+		UpdatedAt:              res.UpdatedAt,
+		RefreshTokenRevokeDate: res.RefreshTokenRevokeDate.Time,
+	}, nil
 }
