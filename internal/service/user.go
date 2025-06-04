@@ -90,6 +90,9 @@ func (s *UserServiceImpl) LoginUser(ctx context.Context, request user.LoginUserR
 
 func (s *UserServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken string) (*user.User, error) {
 	user, err := s.userRepo.SelectUserByRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return nil, err
+	}
 
 	if time.Now().After(user.RefreshTokenRevokeDate) {
 		return nil, errors.New("refresh token expired, please login again")
