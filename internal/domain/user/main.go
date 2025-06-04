@@ -85,3 +85,22 @@ func NewLoginUserRequest(email, password string) (*LoginUserRequest, error) {
 		Password: password,
 	}, nil
 }
+
+type UpdateUserRequest struct {
+	Id              int32
+	Email           string
+	NewPasswordHash string
+}
+
+func NewUpdateUserRequest(email, password string, userId int32) (*UpdateUserRequest, error) {
+	user, err := NewUser(email, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UpdateUserRequest{
+		Id:              userId,
+		Email:           user.Email,
+		NewPasswordHash: user.GetPasswordHash(),
+	}, nil
+}

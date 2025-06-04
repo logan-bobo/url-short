@@ -13,10 +13,11 @@ SELECT *
 FROM users
 WHERE id = $1;
 
--- name: UpdateUser :exec
+-- name: UpdateUser :one
 UPDATE users
 SET email = $1, password = $2, updated_at = $3
-WHERE id = $4;
+WHERE id = $4
+RETURNING *;
 
 -- name: UserTokenRefresh :exec
 UPDATE users

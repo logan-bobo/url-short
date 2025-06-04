@@ -19,9 +19,7 @@ type UserService interface {
 	CreateUser(ctx context.Context, request user.CreateUserRequest) (*user.User, error)
 	LoginUser(ctx context.Context, request user.LoginUserRequest) (*user.User, error)
 	RefreshAccessToken(ctx context.Context, token string) (*user.User, error)
-	//UpdateUser()
-	//LoginUser()
-	//GetUserRefreshToken()
+	UpdateUser(ctx context.Context, request user.UpdateUserRequest) (*user.User, error)
 }
 
 type UserServiceImpl struct {
@@ -114,6 +112,15 @@ func (s *UserServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	}
 
 	user.Token = signedToken
+
+	return user, nil
+}
+
+func (s *UserServiceImpl) UpdateUser(ctx context.Context, request user.UpdateUserRequest) (*user.User, error) {
+	user, err := s.userRepo.UpdateUser(ctx, request)
+	if err != nil {
+		return nil, err
+	}
 
 	return user, nil
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
@@ -12,15 +11,11 @@ import (
 )
 
 type userHandler struct {
-	database    *database.Queries
-	JWTSecret   string
 	userService service.UserService
 }
 
-func NewUserHandler(database *database.Queries, JWTSecret string, userService service.UserService) *userHandler {
+func NewUserHandler(userService service.UserService) *userHandler {
 	return &userHandler{
-		database:    database,
-		JWTSecret:   JWTSecret,
 		userService: userService,
 	}
 }
@@ -154,27 +149,22 @@ func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, a
 		return
 	}
 
-	domainUser, err := user.NewUser(payload.Email, payload.Password)
+	updateUserRequest, err := user.NewUpdateUserRequest(payload.Email, payload.Password, authUser.ID)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
-	domainUser.Id = authUser.ID
-
-	err = handler.database.UpdateUser(r.Context(), database.UpdateUserParams{
-		Email:     domainUser.Email,
-		Password:  domainUser.GetPasswordHash(),
-		ID:        domainUser.Id,
-		UpdatedAt: time.Now(),
-	})
-
+	user, err := handler.userService.UpdateUser(r.Context(), *updateUserRequest)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not update user in database")
+		log.Println(err)
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, updateUserHTTPResponseBody{
-		Email: payload.Email,
-		ID:    domainUser.Id,
+		Email: user.Email,
+		ID:    user.Id,
 	})
 }

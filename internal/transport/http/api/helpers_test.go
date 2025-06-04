@@ -172,7 +172,7 @@ func setupUserOne(a *testApplication) (*createUserHTTPResponseBody, error) {
 
 	response := httptest.NewRecorder()
 
-	userHandler := NewUserHandler(a.DB, a.JWTSecret, a.UserService)
+	userHandler := NewUserHandler(a.UserService)
 	userHandler.CreateUser(response, request)
 
 	got := createUserHTTPResponseBody{}
@@ -192,7 +192,7 @@ func loginUserOne(a *testApplication) (*loginUserHTTPResponseBody, error) {
 
 	loginResponse := httptest.NewRecorder()
 
-	userHandler := NewUserHandler(a.DB, a.JWTSecret, a.UserService)
+	userHandler := NewUserHandler(a.UserService)
 	userHandler.LoginUser(loginResponse, loginRequest)
 
 	loginGot := loginUserHTTPResponseBody{}

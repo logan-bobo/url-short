@@ -14,6 +14,7 @@ type UserRepository interface {
 	SelectUser(ctx context.Context, email string) (*user.User, error)
 	SelectUserByRefreshToken(ctx context.Context, email string) (*user.User, error)
 	UpdateRefreshToken(ctx context.Context, refreshToken string, userID int32) error
+	UpdateUser(ctx context.Context, request user.UpdateUserRequest) (*user.User, error)
 }
 
 type PostgresUserRepository struct {
@@ -95,4 +96,24 @@ func (r *PostgresUserRepository) SelectUserByRefreshToken(ctx context.Context, r
 		UpdatedAt:              res.UpdatedAt,
 		RefreshTokenRevokeDate: res.RefreshTokenRevokeDate.Time,
 	}, nil
+}
+
+func (r *PostgresUserRepository) UpdateUser(ctx context.Context, request user.UpdateUserRequest) (*user.User, error) {
+	res, err := r.db.UpdateUser(ctx, database.UpdateUserParams{
+		Email:     request.Email,
+		Password:  request.NewPasswordHash,
+		ID:        request.Id,
+		UpdatedAt: time.Now(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user.User{
+		Id:        res.ID,
+		Email:     res.Email,
+		UpdatedAt: res.UpdatedAt,
+	}, nil
+
 }
