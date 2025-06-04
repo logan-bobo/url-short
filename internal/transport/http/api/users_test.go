@@ -19,7 +19,7 @@ func TestPostUser(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
+	userHandler := NewUserHandler(app.UserService)
 
 	t.Run("test user creation passes with correct parameters", func(t *testing.T) {
 		userOne, err := setupUserOne(app)
@@ -128,7 +128,7 @@ func TestPostLogin(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
+	userHandler := NewUserHandler(app.UserService)
 
 	_, err = setupUserOne(app)
 
@@ -230,7 +230,7 @@ func TestRefreshEndpoint(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
+	userHandler := NewUserHandler(app.UserService)
 
 	_, err = setupUserOne(app)
 
@@ -274,7 +274,7 @@ func TestPutUser(t *testing.T) {
 		t.Errorf("could not create test app %q", err)
 	}
 
-	userHandler := NewUserHandler(app.DB, app.JWTSecret, app.UserService)
+	userHandler := NewUserHandler(app.UserService)
 
 	_, err = setupUserOne(app)
 

@@ -58,7 +58,7 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 	URLservice := service.NewURLServiceImpl(databaseRepo, cacheRepo)
 	UserService := service.NewUserServiceImpl(userRepo, a.JWTSecret)
 
-	users := api.NewUserHandler(a.DB, a.JWTSecret, UserService)
+	users := api.NewUserHandler(UserService)
 	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
 	urls := api.NewShortUrlHandler(URLservice)
 
