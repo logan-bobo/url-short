@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"url-short/internal/database"
 	"url-short/internal/domain/user"
 	"url-short/internal/service"
 )
@@ -139,7 +138,7 @@ type updateUserHTTPResponseBody struct {
 	Email string `json:"email"`
 }
 
-func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, authUser database.User) {
+func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, authUser *user.User) {
 	payload := updateUserHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
@@ -149,7 +148,7 @@ func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, a
 		return
 	}
 
-	updateUserRequest, err := user.NewUpdateUserRequest(payload.Email, payload.Password, authUser.ID)
+	updateUserRequest, err := user.NewUpdateUserRequest(payload.Email, payload.Password, authUser.Id)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, err.Error())

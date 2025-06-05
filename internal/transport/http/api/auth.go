@@ -4,24 +4,19 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
-
-	"url-short/internal/database"
+	"url-short/internal/domain/user"
+	"url-short/internal/service"
 )
 
 type authHandler struct {
-	// temporary now to allow transport, service and repository layers to be decoupled
-	database  *database.Queries
-	JWTSecret string
+	service service.UserService
 }
 
-func NewAuthHandler(database *database.Queries, JWTSecret string) *authHandler {
+func NewAuthHandler(service service.UserService) *authHandler {
 	return &authHandler{
-		database:  database,
-		JWTSecret: JWTSecret,
+		service: service,
 	}
 }
 
@@ -45,7 +40,7 @@ func ExtractAuthTokenFromRequest(r *http.Request) (string, error) {
 	return splitAuth[1], nil
 }
 
-type authedHandeler func(http.ResponseWriter, *http.Request, database.User)
+type authedHandeler func(http.ResponseWriter, *http.Request, *user.User)
 
 func (handler *authHandler) AuthenticationMiddleware(nextHandler authedHandeler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,49 +51,11 @@ func (handler *authHandler) AuthenticationMiddleware(nextHandler authedHandeler)
 			return
 		}
 
-		claims := jwt.RegisteredClaims{}
-
-		token, err := jwt.ParseWithClaims(
-			requestToken,
-			&claims,
-			func(token *jwt.Token) (any, error) { return []byte(handler.JWTSecret), nil },
-		)
-
-		if err != nil {
-			respondWithError(w, http.StatusUnauthorized, "invalid jwt")
-			return
-		}
-
-		issuer, err := token.Claims.GetIssuer()
-
-		if err != nil {
-			respondWithError(w, http.StatusUnauthorized, "invalid jwt issuer")
-			return
-		}
-
-		if issuer != "url-short-auth" {
-			respondWithError(w, http.StatusUnauthorized, "invalid jwt issuer")
-			return
-		}
-
-		userID, err := token.Claims.GetSubject()
-
-		if err != nil {
-			respondWithError(w, http.StatusUnauthorized, "could not get subject from jwt")
-			return
-		}
-
-		userIDStr, err := strconv.Atoi(userID)
-
-		if err != nil {
-			respondWithError(w, http.StatusUnauthorized, "invalid jwt subject")
-		}
-
-		user, err := handler.database.SelectUserByID(r.Context(), int32(userIDStr))
-
+		user, err := handler.service.ValidateUserJWT(r.Context(), requestToken)
 		if err != nil {
 			log.Println(err)
-			respondWithError(w, http.StatusUnauthorized, "could not find user in database")
+			respondWithError(w, http.StatusUnauthorized, "unauthorized")
+			return
 		}
 
 		nextHandler(w, r, user)

@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"url-short/internal/database"
 	"url-short/internal/domain/shorturl"
+	"url-short/internal/domain/user"
 	"url-short/internal/service"
 )
 
@@ -28,7 +28,7 @@ type createShortURLHTTPResponseBody struct {
 	ShortURL string `json:"short_url"`
 }
 
-func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
 	payload := createShortURLHTTPRequestBody{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
@@ -37,7 +37,7 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	createURLRequest, err := shorturl.NewCreateURLRequest(user.ID, payload.LongURL)
+	createURLRequest, err := shorturl.NewCreateURLRequest(user.Id, payload.LongURL)
 	if err != nil {
 		log.Println(err)
 		respondWithError(w, http.StatusBadRequest, "could not parse request URL")
@@ -73,7 +73,7 @@ func (h *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url.LongURL, http.StatusMovedPermanently)
 }
 
-func (h *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (h *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
 	shortUrl := r.PathValue("shortUrl")
 
 	if shortUrl == "" {
@@ -81,7 +81,7 @@ func (h *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	req := shorturl.NewDeleteURLRequest(user.ID, shortUrl)
+	req := shorturl.NewDeleteURLRequest(user.Id, shortUrl)
 
 	err := h.urlService.DeleteShortURL(r.Context(), *req)
 
@@ -104,7 +104,7 @@ type updateShortURLHTTPResponseBody struct {
 	LongURL  string `json:"long_url"`
 }
 
-func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user database.User) {
+func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
 	query := r.PathValue("shortUrl")
 
 	if query == "" {
@@ -120,7 +120,7 @@ func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request,
 		respondWithError(w, http.StatusBadRequest, "invalid request body")
 	}
 
-	req := shorturl.NewUpdateURLRequest(user.ID, query, payload.LongURL)
+	req := shorturl.NewUpdateURLRequest(user.Id, query, payload.LongURL)
 
 	url, err := h.urlService.UpdateShortURL(r.Context(), *req)
 

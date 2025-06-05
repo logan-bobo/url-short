@@ -296,7 +296,7 @@ func TestPutUser(t *testing.T) {
 
 		putUserResponse := httptest.NewRecorder()
 
-		user, err := app.DB.SelectUser(putUserRequest.Context(), userOne.Email)
+		user, err := app.UserRepo.SelectUser(putUserRequest.Context(), userOne.Email)
 
 		if err != nil {
 			t.Error("could not find user that was expected to exist")
