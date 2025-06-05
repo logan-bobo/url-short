@@ -59,7 +59,7 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 	UserService := service.NewUserServiceImpl(userRepo, a.JWTSecret)
 
 	users := api.NewUserHandler(UserService)
-	auth := api.NewAuthHandler(a.DB, a.JWTSecret)
+	auth := api.NewAuthHandler(UserService)
 	urls := api.NewShortUrlHandler(URLservice)
 
 	mux.HandleFunc("GET /api/v1/healthz", api.GetHealth)

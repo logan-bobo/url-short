@@ -13,6 +13,7 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, request user.CreateUserRequest) (*user.User, error)
 	SelectUser(ctx context.Context, email string) (*user.User, error)
 	SelectUserByRefreshToken(ctx context.Context, email string) (*user.User, error)
+	SelectUserByID(ctx context.Context, userID int32) (*user.User, error)
 	UpdateRefreshToken(ctx context.Context, refreshToken string, userID int32) error
 	UpdateUser(ctx context.Context, request user.UpdateUserRequest) (*user.User, error)
 }
@@ -55,6 +56,21 @@ func (r *PostgresUserRepository) SelectUser(ctx context.Context, email string) (
 	res, err := r.db.SelectUser(ctx, email)
 
 	// This error hides not found and also internal server error when I have custom error types fix
+	if err != nil {
+		return nil, err
+	}
+
+	return &user.User{
+		Id:           res.ID,
+		Email:        res.Email,
+		PasswordHash: []byte(res.Password),
+		CreatedAt:    res.CreatedAt,
+		UpdatedAt:    res.UpdatedAt,
+	}, nil
+}
+
+func (r *PostgresUserRepository) SelectUserByID(ctx context.Context, id int32) (*user.User, error) {
+	res, err := r.db.SelectUserByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}

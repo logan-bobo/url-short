@@ -38,7 +38,7 @@ func TestPostLongURL(t *testing.T) {
 
 		response := httptest.NewRecorder()
 
-		user, err := app.DB.SelectUser(postLongURLRequest.Context(), userOne.Email)
+		user, err := app.UserRepo.SelectUser(postLongURLRequest.Context(), userOne.Email)
 
 		if err != nil {
 			t.Error("could not find user that was expected to exist")
@@ -98,7 +98,7 @@ func TestGetShortURL(t *testing.T) {
 
 	postURLResponse := httptest.NewRecorder()
 
-	user, err := app.DB.SelectUser(postLongURLRequest.Context(), userOne.Email)
+	user, err := app.UserRepo.SelectUser(postLongURLRequest.Context(), userOne.Email)
 	if err != nil {
 		t.Error("could not find user that was expected to exist")
 	}

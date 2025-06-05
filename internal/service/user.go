@@ -20,6 +20,7 @@ type UserService interface {
 	LoginUser(ctx context.Context, request user.LoginUserRequest) (*user.User, error)
 	RefreshAccessToken(ctx context.Context, token string) (*user.User, error)
 	UpdateUser(ctx context.Context, request user.UpdateUserRequest) (*user.User, error)
+	ValidateUserJWT(ctx context.Context, requestToken string) (*user.User, error)
 }
 
 type UserServiceImpl struct {
@@ -123,4 +124,43 @@ func (s *UserServiceImpl) UpdateUser(ctx context.Context, request user.UpdateUse
 	}
 
 	return user, nil
+}
+
+func (s *UserServiceImpl) ValidateUserJWT(ctx context.Context, requestToken string) (*user.User, error) {
+	claims := jwt.RegisteredClaims{}
+
+	token, err := jwt.ParseWithClaims(
+		requestToken,
+		&claims,
+		func(token *jwt.Token) (any, error) { return []byte(s.JWTSecret), nil },
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		return nil, err
+	}
+
+	if issuer != "url-short-auth" {
+		return nil, jwt.ErrTokenInvalidIssuer
+	}
+
+	userID, err := token.Claims.GetSubject()
+	if err != nil {
+		return nil, err
+	}
+
+	userIDInt, err := strconv.Atoi(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	validatedUser, err := s.userRepo.SelectUserByID(ctx, int32(userIDInt))
+	if err != nil {
+		return nil, err
+	}
+
+	return validatedUser, nil
 }
