@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
+	"url-short/internal/domain/shorturl"
 )
 
 type errorHTTPResponseBody struct {
@@ -27,9 +29,13 @@ func respondWithJSON(w http.ResponseWriter, status int, payload any) {
 	}
 }
 
-func respondWithError(w http.ResponseWriter, code int, msg string) {
+func respondWithError(w http.ResponseWriter, err error) {
 	errorResponse := errorHTTPResponseBody{
-		Error: msg,
+		Error: err.Error(),
+	}
+
+	if errors.Is(err, shorturl.URLValidationError) {
+		code := http.StatusBadRequest
 	}
 
 	respondWithJSON(w, code, errorResponse)

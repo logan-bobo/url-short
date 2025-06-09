@@ -40,7 +40,7 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 	createURLRequest, err := shorturl.NewCreateURLRequest(user.Id, payload.LongURL)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, "could not parse request URL")
+		respondWithError(w, http.StatusBadRequest, err)
 		return
 	}
 
