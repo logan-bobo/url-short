@@ -30,6 +30,14 @@ func NewLongURL(URL string) (*string, error) {
 	return &URL, nil
 }
 
+func NewShortURL(URL string) (string, error) {
+	if URL == "" {
+		return "", ErrURLValidation
+	}
+
+	return URL, nil
+}
+
 func NewUrl(longURL string) (*URL, error) {
 	parsed, err := NewLongURL(longURL)
 	if err != nil {

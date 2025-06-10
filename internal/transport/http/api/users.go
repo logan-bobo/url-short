@@ -37,21 +37,21 @@ func (handler *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, "could not parse request")
+		respondWithError(w, err)
 		return
 	}
 
 	createUserRequest, err := user.NewCreateUserRequest(payload.Email, payload.Password)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, err)
 		return
 	}
 
 	res, err := handler.userService.CreateUser(r.Context(), *createUserRequest)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, "could not create user")
+		respondWithError(w, err)
 		return
 	}
 
@@ -80,19 +80,19 @@ func (handler *userHandler) LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "could not parse request")
+		respondWithError(w, err)
 		return
 	}
 
 	loginUserRequest, err := user.NewLoginUserRequest(payload.Email, payload.Password)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, err)
 		return
 	}
 
 	res, err := handler.userService.LoginUser(r.Context(), *loginUserRequest)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could be lots of errors need to handle")
+		respondWithError(w, err)
 		return
 	}
 
@@ -112,14 +112,14 @@ func (handler *userHandler) RefreshAccessToken(w http.ResponseWriter, r *http.Re
 	requestToken, err := ExtractAuthTokenFromRequest(r)
 
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, err)
 		return
 	}
 
 	user, err := handler.userService.RefreshAccessToken(r.Context(), requestToken)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not refresh access token")
+		respondWithError(w, err)
 		return
 	}
 
@@ -144,21 +144,21 @@ func (handler *userHandler) UpdateUser(w http.ResponseWriter, r *http.Request, a
 	err := json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "incorrect parameters for user update request")
+		respondWithError(w, err)
 		return
 	}
 
 	updateUserRequest, err := user.NewUpdateUserRequest(payload.Email, payload.Password, authUser.Id)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, err)
 		return
 	}
 
 	user, err := handler.userService.UpdateUser(r.Context(), *updateUserRequest)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		respondWithError(w, err)
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"url-short/internal/domain/shorturl"
+	"url-short/internal/domain/user"
 )
 
 type errorHTTPResponseBody struct {
@@ -36,6 +37,7 @@ func respondWithError(w http.ResponseWriter, err error) {
 		Error: err.Error(),
 	}
 
+	// json validation errros that I do not controll but must parse
 	var syntaxError *json.SyntaxError
 	var unmarshalTypeError *json.UnmarshalTypeError
 	var invalidUnmarshalError *json.InvalidUnmarshalError
@@ -45,12 +47,28 @@ func respondWithError(w http.ResponseWriter, err error) {
 		code = http.StatusBadRequest
 	}
 
-	if errors.As(err, shorturl.ErrURLValidation) {
+	switch err {
+	case shorturl.ErrURLValidation:
 		code = http.StatusBadRequest
+	case shorturl.ErrURLNotFound:
+		code = http.StatusNotFound
+	case shorturl.ErrUnexpectedError:
+		code = http.StatusInternalServerError
+	default:
+		code = http.StatusInternalServerError
 	}
 
-	if errors.As(err, shorturl.ErrURLNotFound) {
+	switch err {
+	case user.ErrEmptyEmail,
+		user.ErrInvalidEmail,
+		user.ErrEmptyPassword,
+		user.ErrInvalidPassword,
+		user.ErrInvalidLoginRequest:
+		code = http.StatusBadRequest
+	case user.ErrUserNotFound:
 		code = http.StatusNotFound
+	case user.ErrUnexpectedError:
+		code = http.StatusInternalServerError
 	}
 
 	respondWithJSON(w, code, errorResponse)

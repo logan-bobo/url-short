@@ -58,37 +58,41 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 }
 
 func (h *shorturlHandler) GetShortURL(w http.ResponseWriter, r *http.Request) {
-	shortURL := r.PathValue("shortUrl")
+	shortURLExtract := r.PathValue("shortUrl")
 
-	if shortURL == "" {
-		respondWithError(w, http.StatusBadRequest, "no short url supplied")
+	shortURL, err := shorturl.NewShortURL(shortURLExtract)
+
+	if err != nil {
+		respondWithError(w, err)
 		return
 	}
 
 	url, err := h.urlService.GetLongURL(r.Context(), shortURL)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "This could be a few errors")
+		respondWithError(w, err)
+		return
 	}
 
 	http.Redirect(w, r, url.LongURL, http.StatusMovedPermanently)
 }
 
 func (h *shorturlHandler) DeleteShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
-	shortUrl := r.PathValue("shortUrl")
+	shortURLExtract := r.PathValue("shortUrl")
 
-	if shortUrl == "" {
-		respondWithError(w, http.StatusBadRequest, "no short url supplied")
+	shortURL, err := shorturl.NewShortURL(shortURLExtract)
+
+	if err != nil {
+		respondWithError(w, err)
 		return
 	}
 
-	req := shorturl.NewDeleteURLRequest(user.Id, shortUrl)
+	req := shorturl.NewDeleteURLRequest(user.Id, shortURL)
 
-	err := h.urlService.DeleteShortURL(r.Context(), *req)
+	err = h.urlService.DeleteShortURL(r.Context(), *req)
 
 	if err != nil {
 		log.Println(err)
-		// TODO: multiple errors could bubble up here handle them!
-		respondWithError(w, http.StatusBadRequest, "could not delete short url")
+		respondWithError(w, err)
 		return
 	}
 
@@ -105,27 +109,31 @@ type updateShortURLHTTPResponseBody struct {
 }
 
 func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
-	query := r.PathValue("shortUrl")
+	shortURLExtract := r.PathValue("shortUrl")
 
-	if query == "" {
-		respondWithError(w, http.StatusBadRequest, "no short url supplied")
+	shortURL, err := shorturl.NewShortURL(shortURLExtract)
+
+	if err != nil {
+		respondWithError(w, err)
 		return
 	}
 
 	payload := updateShortURLHTTPRequestBody{}
 
-	err := json.NewDecoder(r.Body).Decode(&payload)
+	err = json.NewDecoder(r.Body).Decode(&payload)
 
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		respondWithError(w, err)
+		return
 	}
 
-	req := shorturl.NewUpdateURLRequest(user.Id, query, payload.LongURL)
+	req := shorturl.NewUpdateURLRequest(user.Id, shortURL, payload.LongURL)
 
 	url, err := h.urlService.UpdateShortURL(r.Context(), *req)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "this could be a few errors come back to handle")
+		respondWithError(w, err)
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, updateShortURLHTTPResponseBody{
