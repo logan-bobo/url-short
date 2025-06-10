@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"crypto/md5"
-	"database/sql"
 	"encoding/hex"
 	"log"
 	"strings"
@@ -12,8 +11,6 @@ import (
 	"url-short/internal/domain/shorturl"
 	"url-short/internal/repository"
 
-	// Really the service should not know about redis
-	// but I need to implement custom errors before this can be removed
 	"github.com/redis/go-redis/v9"
 )
 
@@ -42,7 +39,6 @@ func (s *URLServiceImpl) CreateShortURL(
 	request shorturl.CreateURLRequest,
 ) (*shorturl.URL, error) {
 	shortURLHash, err := s.GenerateUniqueShortURL(ctx, request.LongURL)
-
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -51,7 +47,6 @@ func (s *URLServiceImpl) CreateShortURL(
 	request.ShortURL = shortURLHash
 
 	createdShortURL, err := s.urlRepo.CreateShortURL(ctx, request)
-
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -77,14 +72,10 @@ func (s *URLServiceImpl) GenerateUniqueShortURL(
 		}
 
 		_, err := s.urlRepo.GetURLByHash(ctx, hash)
-
-		// TODO: Replace with my own errors
-		if err == sql.ErrNoRows {
+		if err == shorturl.ErrURLNotFound {
 			return hash, nil
 		}
-
-		// TODO: Replace with my own errors
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && err != shorturl.ErrURLNotFound {
 			return "", err
 		}
 
@@ -92,8 +83,6 @@ func (s *URLServiceImpl) GenerateUniqueShortURL(
 	}
 }
 
-// TODO: before I continue we need custom domain errors becasue the service layer shold not know about
-// a HTTP status!
 func (s *URLServiceImpl) GetLongURL(ctx context.Context, shortURL string) (*shorturl.URL, error) {
 	url, err := s.cacheRepo.GetURL(ctx, shortURL)
 
@@ -102,7 +91,6 @@ func (s *URLServiceImpl) GetLongURL(ctx context.Context, shortURL string) (*shor
 	case err == redis.Nil:
 		row, err := s.urlRepo.GetURLByHash(ctx, shortURL)
 
-		// this could be internal server error or not found...
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -122,7 +110,6 @@ func (s *URLServiceImpl) GetLongURL(ctx context.Context, shortURL string) (*shor
 
 		row, err := s.urlRepo.GetURLByHash(ctx, shortURL)
 
-		// this could be both internal server error or not found...
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -162,10 +149,7 @@ func (s *URLServiceImpl) UpdateShortURL(ctx context.Context, request shorturl.Up
 	err = s.cacheRepo.InsertURL(ctx, url.ShortURL, url.LongURL, (time.Hour * 1))
 
 	if err != nil {
-		// failing to persist to the cache? How to handle this?
-		// initial thought is just to log and you would have some metrics
-		// for cache persistence failure that you would alert on
-		// this shouldnt stop the request and return an error
+		// We can use a cache write failure metric here to avoid not returning the updated url to the user
 		log.Println(err)
 	}
 

@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"url-short/internal/database"
@@ -37,7 +39,7 @@ func (r *PostgresURLRepository) CreateShortURL(
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, getDomainErrorFromSQLError(err)
 	}
 
 	return &shorturl.URL{
@@ -55,8 +57,9 @@ func (r *PostgresURLRepository) GetURLByHash(
 	hash string,
 ) (*shorturl.URL, error) {
 	res, err := r.db.SelectURL(ctx, hash)
+
 	if err != nil {
-		return nil, err
+		return nil, getDomainErrorFromSQLError(err)
 	}
 
 	return &shorturl.URL{
@@ -77,7 +80,7 @@ func (r *PostgresURLRepository) DeleteShortURL(
 		UserID:   url.UserID,
 		ShortUrl: url.ShortURL,
 	}); err != nil {
-		return err
+		return getDomainErrorFromSQLError(err)
 	}
 	return nil
 }
@@ -94,7 +97,7 @@ func (r *PostgresURLRepository) UpdateShortURL(
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, getDomainErrorFromSQLError(err)
 	}
 
 	return &shorturl.URL{
@@ -105,4 +108,14 @@ func (r *PostgresURLRepository) UpdateShortURL(
 		UpdatedAt: res.UpdatedAt,
 		UserID:    res.UserID,
 	}, nil
+}
+
+// TODO: This could include more errors
+func getDomainErrorFromSQLError(sqlError error) error {
+
+	if errors.Is(sqlError, sql.ErrNoRows) {
+		return shorturl.ErrURLNotFound
+	}
+
+	return shorturl.ErrUnexpectedError
 }

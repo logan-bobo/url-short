@@ -1,9 +1,15 @@
 package shorturl
 
 import (
-	"fmt"
+	"errors"
 	"net/url"
 	"time"
+)
+
+var (
+	ErrURLNotFound     = errors.New("url could not be found")
+	ErrURLValidation   = errors.New("could not validate url")
+	ErrUnexpectedError = errors.New("unexpected server error")
 )
 
 type URL struct {
@@ -18,7 +24,7 @@ type URL struct {
 func NewLongURL(URL string) (*string, error) {
 	_, err := url.ParseRequestURI(URL)
 	if err != nil {
-		return nil, err
+		return nil, ErrURLValidation
 	}
 
 	return &URL, nil
@@ -44,7 +50,7 @@ type CreateURLRequest struct {
 func NewCreateURLRequest(userID int32, URL string) (*CreateURLRequest, error) {
 	parsed, err := NewLongURL(URL)
 	if err != nil {
-		return nil, NewURLValidationError(fmt.Sprintf("could not validate url, %v", err))
+		return nil, err
 	}
 
 	return &CreateURLRequest{
@@ -77,42 +83,4 @@ func NewUpdateURLRequest(userID int32, shortURL string, longURL string) *UpdateU
 		ShortURL: shortURL,
 		LongURL:  longURL,
 	}
-}
-
-type URLError struct {
-	Message string
-}
-
-func (e *URLError) Error() string {
-	return fmt.Sprintf("%s", e.Message)
-}
-
-type URLValidationError struct {
-	URLError
-}
-
-func NewURLValidationError(msg string) *URLValidationError {
-	return &URLValidationError{URLError{
-		Message: msg,
-	}}
-}
-
-type URLNotFoundError struct {
-	URLError
-}
-
-func NewURLNotFoundError() *URLNotFoundError {
-	return &URLNotFoundError{URLError{
-		Message: "url could not be found",
-	}}
-}
-
-type URLCreationError struct {
-	URLError
-}
-
-func NewURLCreationError(msg string) *URLCreationError {
-	return &URLCreationError{URLError{
-		Message: msg,
-	}}
 }

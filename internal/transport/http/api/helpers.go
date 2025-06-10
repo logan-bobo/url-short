@@ -30,12 +30,27 @@ func respondWithJSON(w http.ResponseWriter, status int, payload any) {
 }
 
 func respondWithError(w http.ResponseWriter, err error) {
+	code := http.StatusBadRequest
+
 	errorResponse := errorHTTPResponseBody{
 		Error: err.Error(),
 	}
 
-	if errors.Is(err, shorturl.URLValidationError) {
-		code := http.StatusBadRequest
+	var syntaxError *json.SyntaxError
+	var unmarshalTypeError *json.UnmarshalTypeError
+	var invalidUnmarshalError *json.InvalidUnmarshalError
+	if errors.As(err, &syntaxError) ||
+		errors.As(err, &unmarshalTypeError) ||
+		errors.As(err, &invalidUnmarshalError) {
+		code = http.StatusBadRequest
+	}
+
+	if errors.As(err, shorturl.ErrURLValidation) {
+		code = http.StatusBadRequest
+	}
+
+	if errors.As(err, shorturl.ErrURLNotFound) {
+		code = http.StatusNotFound
 	}
 
 	respondWithJSON(w, code, errorResponse)

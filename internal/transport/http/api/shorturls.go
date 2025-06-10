@@ -33,23 +33,23 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "incorrect request fromat")
+		log.Println(err)
+		respondWithError(w, err)
 		return
 	}
 
 	createURLRequest, err := shorturl.NewCreateURLRequest(user.Id, payload.LongURL)
 	if err != nil {
 		log.Println(err)
-		respondWithError(w, http.StatusBadRequest, err)
+		respondWithError(w, err)
 		return
 	}
 
 	createURLResponse, err := h.urlService.CreateShortURL(r.Context(), *createURLRequest)
 	if err != nil {
 		log.Println(err)
-		// respond with error should be able to deal with a unique key violation, not found or intenral
-		// server error
-		respondWithError(w, http.StatusInternalServerError, "This could be a few errors")
+		respondWithError(w, err)
+		return
 	}
 
 	respondWithJSON(w, http.StatusCreated, createShortURLHTTPResponseBody{
