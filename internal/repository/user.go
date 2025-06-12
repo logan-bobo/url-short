@@ -3,10 +3,13 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"url-short/internal/database"
 	"url-short/internal/domain/user"
+
+	"github.com/lib/pq"
 )
 
 type UserRepository interface {
@@ -39,8 +42,7 @@ func (r *PostgresUserRepository) CreateUser(ctx context.Context, request user.Cr
 	})
 
 	if err != nil {
-		// This error hides not found and also internal server error when I have custom error types fix
-		return nil, err
+		return nil, getUserDomainErrorFromSQLError(err)
 	}
 
 	return &user.User{
@@ -55,7 +57,6 @@ func (r *PostgresUserRepository) CreateUser(ctx context.Context, request user.Cr
 func (r *PostgresUserRepository) SelectUser(ctx context.Context, email string) (*user.User, error) {
 	res, err := r.db.SelectUser(ctx, email)
 
-	// This error hides not found and also internal server error when I have custom error types fix
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (r *PostgresUserRepository) SelectUser(ctx context.Context, email string) (
 func (r *PostgresUserRepository) SelectUserByID(ctx context.Context, id int32) (*user.User, error) {
 	res, err := r.db.SelectUserByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, getUserDomainErrorFromSQLError(err)
 	}
 
 	return &user.User{
@@ -92,7 +93,7 @@ func (r *PostgresUserRepository) UpdateRefreshToken(ctx context.Context, refresh
 	})
 
 	if err != nil {
-		return err
+		return getUserDomainErrorFromSQLError(err)
 	}
 
 	return nil
@@ -101,7 +102,7 @@ func (r *PostgresUserRepository) UpdateRefreshToken(ctx context.Context, refresh
 func (r *PostgresUserRepository) SelectUserByRefreshToken(ctx context.Context, refreshToken string) (*user.User, error) {
 	res, err := r.db.SelectUserByRefreshToken(ctx, sql.NullString{String: refreshToken, Valid: true})
 	if err != nil {
-		return nil, err
+		return nil, getUserDomainErrorFromSQLError(err)
 	}
 
 	return &user.User{
@@ -123,7 +124,7 @@ func (r *PostgresUserRepository) UpdateUser(ctx context.Context, request user.Up
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, getUserDomainErrorFromSQLError(err)
 	}
 
 	return &user.User{
@@ -132,4 +133,21 @@ func (r *PostgresUserRepository) UpdateUser(ctx context.Context, request user.Up
 		UpdatedAt: res.UpdatedAt,
 	}, nil
 
+}
+
+func getUserDomainErrorFromSQLError(sqlError error) error {
+
+	if errors.Is(sqlError, sql.ErrNoRows) {
+		return user.ErrUserNotFound
+	}
+
+	pgErr, ok := sqlError.(*pq.Error)
+	if ok {
+		// unique_violation
+		if pgErr.Code == "23505" {
+			return user.ErrDuplicateUSer
+		}
+	}
+
+	return user.ErrUnexpectedError
 }

@@ -10,6 +10,7 @@ var (
 	ErrURLNotFound     = errors.New("url could not be found")
 	ErrURLValidation   = errors.New("could not validate url")
 	ErrUnexpectedError = errors.New("unexpected server error")
+	ErrDuplicateURL    = errors.New("duplicate url")
 )
 
 type URL struct {

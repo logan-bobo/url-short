@@ -8,6 +8,8 @@ import (
 
 	"url-short/internal/database"
 	"url-short/internal/domain/shorturl"
+
+	"github.com/lib/pq"
 )
 
 type URLRepository interface {
@@ -39,7 +41,7 @@ func (r *PostgresURLRepository) CreateShortURL(
 	})
 
 	if err != nil {
-		return nil, getDomainErrorFromSQLError(err)
+		return nil, getURLDomainErrorFromSQLError(err)
 	}
 
 	return &shorturl.URL{
@@ -59,7 +61,7 @@ func (r *PostgresURLRepository) GetURLByHash(
 	res, err := r.db.SelectURL(ctx, hash)
 
 	if err != nil {
-		return nil, getDomainErrorFromSQLError(err)
+		return nil, getURLDomainErrorFromSQLError(err)
 	}
 
 	return &shorturl.URL{
@@ -80,7 +82,7 @@ func (r *PostgresURLRepository) DeleteShortURL(
 		UserID:   url.UserID,
 		ShortUrl: url.ShortURL,
 	}); err != nil {
-		return getDomainErrorFromSQLError(err)
+		return getURLDomainErrorFromSQLError(err)
 	}
 	return nil
 }
@@ -97,7 +99,7 @@ func (r *PostgresURLRepository) UpdateShortURL(
 	})
 
 	if err != nil {
-		return nil, getDomainErrorFromSQLError(err)
+		return nil, getURLDomainErrorFromSQLError(err)
 	}
 
 	return &shorturl.URL{
@@ -110,11 +112,17 @@ func (r *PostgresURLRepository) UpdateShortURL(
 	}, nil
 }
 
-// TODO: This could include more errors
-func getDomainErrorFromSQLError(sqlError error) error {
-
+func getURLDomainErrorFromSQLError(sqlError error) error {
 	if errors.Is(sqlError, sql.ErrNoRows) {
 		return shorturl.ErrURLNotFound
+	}
+
+	pgErr, ok := sqlError.(*pq.Error)
+	if ok {
+		// unique_violation
+		if pgErr.Code == "23505" {
+			return shorturl.ErrDuplicateURL
+		}
 	}
 
 	return shorturl.ErrUnexpectedError

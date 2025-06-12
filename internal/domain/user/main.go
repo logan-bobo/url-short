@@ -27,6 +27,7 @@ var (
 	ErrInvalidLoginRequest = errors.New("email and password must not be empty")
 	ErrUserNotFound        = errors.New("user could not be found")
 	ErrUnexpectedError     = errors.New("unexpected server error")
+	ErrDuplicateUSer       = errors.New("user already exists")
 )
 
 func NewUser(email, password string) (*User, error) {

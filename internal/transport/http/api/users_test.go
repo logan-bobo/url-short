@@ -115,7 +115,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "could not create user"
+		want := "user already exists"
 		if got.Error != want {
 			t.Errorf("expected duplicate user to fail got %q wanted %q", got.Error, want)
 		}
@@ -152,7 +152,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "email or password must not be empty"
+		want := "email and password must not be empty"
 		if got.Error != want {
 			t.Errorf("incorrect error when passing invalid login parameters got %q want %q", got.Error, want)
 		}

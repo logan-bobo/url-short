@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"url-short/internal/domain/shorturl"
@@ -43,12 +44,18 @@ func respondWithError(w http.ResponseWriter, err error) {
 	var invalidUnmarshalError *json.InvalidUnmarshalError
 	if errors.As(err, &syntaxError) ||
 		errors.As(err, &unmarshalTypeError) ||
+		errors.Is(err, io.EOF) ||
 		errors.As(err, &invalidUnmarshalError) {
 		code = http.StatusBadRequest
+		errorResponse = errorHTTPResponseBody{
+			Error: "could not parse request",
+		}
 	}
 
+	// shorturl domain errors -> HTTP errors
 	switch err {
-	case shorturl.ErrURLValidation:
+	case shorturl.ErrURLValidation,
+		shorturl.ErrDuplicateURL:
 		code = http.StatusBadRequest
 	case shorturl.ErrURLNotFound:
 		code = http.StatusNotFound
@@ -58,17 +65,25 @@ func respondWithError(w http.ResponseWriter, err error) {
 		code = http.StatusInternalServerError
 	}
 
+	// user domain errros -> HTTP errors
 	switch err {
 	case user.ErrEmptyEmail,
 		user.ErrInvalidEmail,
 		user.ErrEmptyPassword,
 		user.ErrInvalidPassword,
+		user.ErrDuplicateUSer,
 		user.ErrInvalidLoginRequest:
 		code = http.StatusBadRequest
 	case user.ErrUserNotFound:
 		code = http.StatusNotFound
 	case user.ErrUnexpectedError:
 		code = http.StatusInternalServerError
+	}
+
+	// authorization errors -> HTTP errors
+	switch err {
+	case ErrUnauthorized:
+		code = http.StatusUnauthorized
 	}
 
 	respondWithJSON(w, code, errorResponse)
