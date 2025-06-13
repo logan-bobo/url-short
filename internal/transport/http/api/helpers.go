@@ -50,6 +50,8 @@ func respondWithError(w http.ResponseWriter, err error) {
 		errorResponse = errorHTTPResponseBody{
 			Error: "could not parse request",
 		}
+		respondWithJSON(w, code, errorResponse)
+		return
 	}
 
 	switch err {
