@@ -58,7 +58,7 @@ func (r *PostgresUserRepository) SelectUser(ctx context.Context, email string) (
 	res, err := r.db.SelectUser(ctx, email)
 
 	if err != nil {
-		return nil, err
+		return nil, getUserDomainErrorFromSQLError(err)
 	}
 
 	return &user.User{
@@ -136,7 +136,6 @@ func (r *PostgresUserRepository) UpdateUser(ctx context.Context, request user.Up
 }
 
 func getUserDomainErrorFromSQLError(sqlError error) error {
-
 	if errors.Is(sqlError, sql.ErrNoRows) {
 		return user.ErrUserNotFound
 	}

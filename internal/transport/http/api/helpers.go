@@ -32,7 +32,7 @@ func respondWithJSON(w http.ResponseWriter, status int, payload any) {
 }
 
 func respondWithError(w http.ResponseWriter, err error) {
-	code := http.StatusBadRequest
+	var code int
 
 	errorResponse := errorHTTPResponseBody{
 		Error: err.Error(),
@@ -52,21 +52,8 @@ func respondWithError(w http.ResponseWriter, err error) {
 		}
 	}
 
-	// shorturl domain errors -> HTTP errors
 	switch err {
-	case shorturl.ErrURLValidation,
-		shorturl.ErrDuplicateURL:
-		code = http.StatusBadRequest
-	case shorturl.ErrURLNotFound:
-		code = http.StatusNotFound
-	case shorturl.ErrUnexpectedError:
-		code = http.StatusInternalServerError
-	default:
-		code = http.StatusInternalServerError
-	}
-
 	// user domain errros -> HTTP errors
-	switch err {
 	case user.ErrEmptyEmail,
 		user.ErrInvalidEmail,
 		user.ErrEmptyPassword,
@@ -78,12 +65,22 @@ func respondWithError(w http.ResponseWriter, err error) {
 		code = http.StatusNotFound
 	case user.ErrUnexpectedError:
 		code = http.StatusInternalServerError
-	}
 
 	// authorization errors -> HTTP errors
-	switch err {
 	case ErrUnauthorized:
 		code = http.StatusUnauthorized
+
+	// shorturl domain errors -> HTTP errors
+	case shorturl.ErrURLValidation,
+		shorturl.ErrDuplicateURL:
+		code = http.StatusBadRequest
+	case shorturl.ErrURLNotFound:
+		code = http.StatusNotFound
+	case shorturl.ErrUnexpectedError:
+		code = http.StatusInternalServerError
+
+	default:
+		code = http.StatusInternalServerError
 	}
 
 	respondWithJSON(w, code, errorResponse)

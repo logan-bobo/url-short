@@ -20,10 +20,10 @@ type User struct {
 }
 
 var (
-	ErrEmptyEmail          = errors.New("could not create user: empty email")
-	ErrInvalidEmail        = errors.New("could not create user: invalid email")
-	ErrEmptyPassword       = errors.New("could not create user: empty password")
-	ErrInvalidPassword     = errors.New("could not create user: invalid password")
+	ErrEmptyEmail          = errors.New("empty email")
+	ErrInvalidEmail        = errors.New("invalid email")
+	ErrEmptyPassword       = errors.New("empty password")
+	ErrInvalidPassword     = errors.New("invalid password")
 	ErrInvalidLoginRequest = errors.New("email and password must not be empty")
 	ErrUserNotFound        = errors.New("user could not be found")
 	ErrUnexpectedError     = errors.New("unexpected server error")
