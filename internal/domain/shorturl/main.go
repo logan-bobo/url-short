@@ -1,13 +1,20 @@
 package shorturl
 
 import (
+	"errors"
 	"net/url"
 	"time"
 )
 
+var (
+	ErrURLNotFound     = errors.New("url could not be found")
+	ErrURLValidation   = errors.New("could not validate url")
+	ErrUnexpectedError = errors.New("unexpected server error")
+	ErrDuplicateURL    = errors.New("duplicate url")
+)
+
 type URL struct {
-	ID int32
-	// TODO: Make ShortURL type
+	ID        int32
 	ShortURL  string
 	LongURL   string
 	CreatedAt time.Time
@@ -18,10 +25,18 @@ type URL struct {
 func NewLongURL(URL string) (*string, error) {
 	_, err := url.ParseRequestURI(URL)
 	if err != nil {
-		return nil, err
+		return nil, ErrURLValidation
 	}
 
 	return &URL, nil
+}
+
+func NewShortURL(URL string) (string, error) {
+	if URL == "" {
+		return "", ErrURLValidation
+	}
+
+	return URL, nil
 }
 
 func NewUrl(longURL string) (*URL, error) {
@@ -77,31 +92,4 @@ func NewUpdateURLRequest(userID int32, shortURL string, longURL string) *UpdateU
 		ShortURL: shortURL,
 		LongURL:  longURL,
 	}
-}
-
-type URLError struct {
-	Code    string
-	Message string
-}
-
-type URLValidationError struct {
-	URLError
-}
-
-func NewValidationError(code, msg string) *URLValidationError {
-	return &URLValidationError{URLError{
-		Code:    code,
-		Message: msg,
-	}}
-}
-
-type URLNotFoundError struct {
-	URLError
-}
-
-func NewNotFoundError(code, msg string) *URLNotFoundError {
-	return &URLNotFoundError{URLError{
-		Code:    code,
-		Message: msg,
-	}}
 }

@@ -19,18 +19,29 @@ type User struct {
 	RefreshTokenRevokeDate time.Time
 }
 
+var (
+	ErrEmptyEmail          = errors.New("empty email")
+	ErrInvalidEmail        = errors.New("invalid email")
+	ErrEmptyPassword       = errors.New("empty password")
+	ErrInvalidPassword     = errors.New("invalid password")
+	ErrInvalidLoginRequest = errors.New("email and password must not be empty")
+	ErrUserNotFound        = errors.New("user could not be found")
+	ErrUnexpectedError     = errors.New("unexpected server error")
+	ErrDuplicateUSer       = errors.New("user already exists")
+)
+
 func NewUser(email, password string) (*User, error) {
 	if email == "" {
-		return nil, errors.New("could not create user: empty email")
+		return nil, ErrEmptyEmail
 	}
 
 	_, err := mail.ParseAddress(email)
 	if err != nil {
-		return nil, errors.New("could not create user: invalid email")
+		return nil, ErrInvalidEmail
 	}
 
 	if password == "" {
-		return nil, errors.New("could not create user: empty password")
+		return nil, ErrEmptyPassword
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword(
@@ -39,7 +50,7 @@ func NewUser(email, password string) (*User, error) {
 	)
 
 	if err != nil {
-		return nil, errors.New("could not create user: failure to hash password")
+		return nil, ErrInvalidPassword
 	}
 
 	return &User{
@@ -52,7 +63,6 @@ func (u *User) GetPasswordHash() string {
 	return string(u.PasswordHash)
 }
 
-// TODO: Getters
 type CreateUserRequest struct {
 	Email        string
 	PasswordHash string
@@ -77,7 +87,7 @@ type LoginUserRequest struct {
 
 func NewLoginUserRequest(email, password string) (*LoginUserRequest, error) {
 	if email == "" || password == "" {
-		return nil, errors.New("email or password must not be empty")
+		return nil, ErrInvalidLoginRequest
 	}
 
 	return &LoginUserRequest{

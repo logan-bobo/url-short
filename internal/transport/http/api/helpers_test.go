@@ -17,6 +17,7 @@ import (
 
 	"url-short/internal/configuration"
 	"url-short/internal/database"
+	"url-short/internal/domain/user"
 	"url-short/internal/repository"
 	"url-short/internal/service"
 )
@@ -238,7 +239,7 @@ func TestRespondWithError(t *testing.T) {
 	t.Run("test respond with error with generic error", func(t *testing.T) {
 		response := httptest.NewRecorder()
 
-		respondWithError(response, http.StatusInternalServerError, "stuff is broken")
+		respondWithError(response, user.ErrEmptyEmail)
 
 		wantStruct := errorHTTPResponseBody{}
 
@@ -248,7 +249,7 @@ func TestRespondWithError(t *testing.T) {
 			t.Errorf("could not parse result as expected")
 		}
 
-		if wantStruct.Error != "stuff is broken" {
+		if response.Result().StatusCode != http.StatusBadRequest {
 			t.Errorf("failed to respond with a generic error")
 		}
 	})

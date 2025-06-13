@@ -67,6 +67,10 @@ func TestPostLongURL(t *testing.T) {
 			t.Errorf("hash did not match")
 		}
 	})
+
+	t.Run("test bad request is returned when user supplies invalid json", func(t *testing.T) {})
+
+	t.Run("test unauthoriszed when user does not supply bearer token", func(t *testing.T) {})
 }
 
 func TestGetShortURL(t *testing.T) {

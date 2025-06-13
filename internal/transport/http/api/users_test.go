@@ -49,7 +49,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "could not create user: empty email"
+		want := "empty email"
 		if got.Error != want {
 			t.Errorf("incorrect error when invalid json used got %q wanted %q", got.Error, want)
 		}
@@ -94,7 +94,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "could not create user: invalid email"
+		want := "invalid email"
 		if got.Error != want {
 			t.Errorf("incorrect error when passing invalid email address %q wanted %q", got.Error, want)
 		}
@@ -115,7 +115,7 @@ func TestPostUser(t *testing.T) {
 			t.Errorf("unable to parse response %q into %q", response.Body, got)
 		}
 
-		want := "could not create user"
+		want := "user already exists"
 		if got.Error != want {
 			t.Errorf("expected duplicate user to fail got %q wanted %q", got.Error, want)
 		}
@@ -152,7 +152,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "email or password must not be empty"
+		want := "email and password must not be empty"
 		if got.Error != want {
 			t.Errorf("incorrect error when passing invalid login parameters got %q want %q", got.Error, want)
 		}
@@ -174,7 +174,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "could be lots of errors need to handle"
+		want := "user could not be found"
 		if got.Error != want {
 			t.Errorf("incorrect error when non existent user attempts to login got %q want %q", got.Error, want)
 		}
@@ -196,7 +196,7 @@ func TestPostLogin(t *testing.T) {
 			t.Errorf("could not parse response %q", err)
 		}
 
-		want := "could be lots of errors need to handle"
+		want := "invalid password"
 		if got.Error != want {
 			t.Errorf("incorrect error when incorrect password is supplied got %q want %q", got.Error, want)
 		}

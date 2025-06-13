@@ -45,46 +45,46 @@ func (s *UserServiceImpl) CreateUser(ctx context.Context, request user.CreateUse
 }
 
 func (s *UserServiceImpl) LoginUser(ctx context.Context, request user.LoginUserRequest) (*user.User, error) {
-	user, err := s.userRepo.SelectUser(ctx, request.Email)
+	res, err := s.userRepo.SelectUser(ctx, request.Email)
 	if err != nil {
 		return nil, err
 	}
 
-	err = bcrypt.CompareHashAndPassword(user.PasswordHash, []byte(request.Password))
+	err = bcrypt.CompareHashAndPassword(res.PasswordHash, []byte(request.Password))
 	if err != nil {
-		return nil, err
+		return nil, user.ErrInvalidPassword
 	}
 
 	registeredClaims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 		Issuer:    "url-short-auth",
-		Subject:   strconv.Itoa(int(user.Id)),
+		Subject:   strconv.Itoa(int(res.Id)),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, registeredClaims)
 
 	signedToken, err := token.SignedString([]byte(s.JWTSecret))
 	if err != nil {
-		return nil, err
+		return nil, user.ErrUnexpectedError
 	}
 
 	byteSlice := make([]byte, 32)
 	_, err = rand.Read(byteSlice)
 	refreshToken := hex.EncodeToString(byteSlice)
 	if err != nil {
-		return nil, err
+		return nil, user.ErrUnexpectedError
 	}
 
-	err = s.userRepo.UpdateRefreshToken(ctx, refreshToken, user.Id)
+	err = s.userRepo.UpdateRefreshToken(ctx, refreshToken, res.Id)
 	if err != nil {
 		return nil, err
 	}
 
-	user.RefreshToken = refreshToken
-	user.Token = signedToken
+	res.RefreshToken = refreshToken
+	res.Token = signedToken
 
-	return user, nil
+	return res, nil
 }
 
 func (s *UserServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken string) (*user.User, error) {
