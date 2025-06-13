@@ -1,6 +1,6 @@
 FROM alpine:3.21 AS base
 
-ARG GO_VER="1.24.3-r1"
+ARG GO_VER="1.24.4-r0"
 ARG GO_CI_VER="2.1.2"
 
 RUN apk update
