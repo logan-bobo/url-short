@@ -73,7 +73,9 @@ func withDB() (*database.Queries, error) {
 		return nil, err
 	}
 
-	defer dbMain.Close()
+	defer func() {
+		err = dbMain.Close()
+	}()
 
 	databaseName := generateRandomAlphaString(10)
 
@@ -95,7 +97,7 @@ func withDB() (*database.Queries, error) {
 		return nil, err
 	}
 
-	return database.New(testdb), nil
+	return database.New(testdb), err
 }
 
 type testApplication struct {
