@@ -27,3 +27,4 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
 volumes:
   pgdatatest:
+

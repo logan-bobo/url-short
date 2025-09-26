@@ -1,7 +1,7 @@
 FROM alpine:3.21 AS base
 
-ARG GO_VER="1.24.4-r0"
-ARG GO_CI_VER="2.1.2"
+ARG GO_VER="1.25.1-r0"
+ARG GO_CI_VER="2.5.0"
 
 RUN apk update
 RUN apk upgrade
