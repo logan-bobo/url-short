@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -55,7 +56,7 @@ func TestPostLongURL(t *testing.T) {
 
 		urls.CreateShortURL(response, postLongURLRequest, user)
 
-		gotPutLongURL := updateShortURLHTTPResponseBody{}
+		gotPutLongURL := createShortURLHTTPResponseBody{}
 
 		err = json.NewDecoder(response.Body).Decode(&gotPutLongURL)
 
@@ -109,12 +110,11 @@ func TestGetShortURL(t *testing.T) {
 
 	urls.CreateShortURL(postURLResponse, postLongURLRequest, user)
 
-	gotPutLongURL := updateShortURLHTTPResponseBody{}
-	fmt.Println(gotPutLongURL)
+	gotPutLongURL := createShortURLHTTPResponseBody{}
 
 	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
 	if err != nil {
-		t.Errorf("could not parse update short URL response %v", err)
+		t.Errorf("could not parse get short URL response %v", err)
 	}
 
 	t.Run("test short url redirects to a long URL", func(t *testing.T) {
@@ -138,6 +138,82 @@ func TestGetShortURL(t *testing.T) {
 				redirectLocation,
 				"https://www.google.com",
 			)
+		}
+	})
+}
+
+func TestUpdateShortURL(t *testing.T) {
+	app, err := withTestApplication()
+	if err != nil {
+		t.Errorf("could not create test app %q", err)
+	}
+
+	_, err = setupUserOne(app)
+	if err != nil {
+		t.Errorf("can not set up user for test case with err %q", err)
+	}
+
+	userOne, err := loginUserOne(app)
+	if err != nil {
+		t.Errorf("can not login user one for test case with err %q", err)
+	}
+
+	urls := NewShortUrlHandler(app.URLService)
+
+	postLongURLRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/data/shorten",
+		bytes.NewBuffer(LongUrl),
+	)
+
+	buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
+	postLongURLRequest.Header.Set("Authorization", buildHeader)
+
+	postURLResponse := httptest.NewRecorder()
+
+	user, err := app.UserRepo.SelectUser(postLongURLRequest.Context(), userOne.Email)
+	if err != nil {
+		t.Error("could not find user that was expected to exist")
+	}
+
+	urls.CreateShortURL(postURLResponse, postLongURLRequest, user)
+
+	gotPutLongURL := createShortURLHTTPResponseBody{}
+
+	err = json.NewDecoder(postURLResponse.Body).Decode(&gotPutLongURL)
+	if err != nil {
+		t.Errorf("could not parse get short URL response %v", err)
+	}
+
+	t.Run("test updated at is updated when update is called on a url", func(t *testing.T) {
+		now := time.Now()
+		request, _ := http.NewRequest(
+			http.MethodPut,
+			fmt.Sprintf("/api/v1/%s", gotPutLongURL.ShortURL),
+			bytes.NewBuffer(LongUrl),
+		)
+		request.Header.Set("Content-Type", "application/json")
+
+		response := httptest.NewRecorder()
+
+		user, err := app.UserRepo.SelectUser(postLongURLRequest.Context(), userOne.Email)
+
+		if err != nil {
+			t.Error("could not find user that was expected to exist")
+		}
+
+		urls.UpdateShortURL(response, request, user)
+
+		got := updateShortURLHTTPResponseBody{}
+
+		err = json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Errorf("unable to parse response %q into %q", response.Body, got)
+		}
+
+		if got.UpdatedAt.After(now) {
+			t.Errorf("updated at is not being updated on UpdateShortURL endpoint got %s", got)
 		}
 	})
 }

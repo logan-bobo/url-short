@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"url-short/internal/domain/shorturl"
 	"url-short/internal/domain/user"
@@ -104,8 +105,10 @@ type updateShortURLHTTPRequestBody struct {
 }
 
 type updateShortURLHTTPResponseBody struct {
-	ShortURL string `json:"short_url"`
-	LongURL  string `json:"long_url"`
+	ShortURL  string    `json:"short_url"`
+	LongURL   string    `json:"long_url"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
@@ -137,7 +140,9 @@ func (h *shorturlHandler) UpdateShortURL(w http.ResponseWriter, r *http.Request,
 	}
 
 	respondWithJSON(w, http.StatusOK, updateShortURLHTTPResponseBody{
-		LongURL:  url.LongURL,
-		ShortURL: url.ShortURL,
+		LongURL:   url.LongURL,
+		ShortURL:  url.ShortURL,
+		CreatedAt: url.CreatedAt,
+		UpdatedAt: url.UpdatedAt,
 	})
 }

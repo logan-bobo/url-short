@@ -15,7 +15,7 @@ short_url = $2;
 
 -- name: UpdateShortURL :one
 UPDATE urls
-SET long_url = $1
-WHERE user_id = $2 AND 
-short_url = $3
+SET long_url = $1, updated_at = $2
+WHERE user_id = $3 AND 
+short_url = $4
 RETURNING *;

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"url-short/internal/domain/user"
 	"url-short/internal/service"
@@ -25,10 +26,10 @@ type createUserHTTPRequestBody struct {
 }
 
 type createUserHTTPResponseBody struct {
-	ID        int32  `json:"id"`
-	Email     string `json:"email"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        int32     `json:"id"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (handler *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -58,14 +59,14 @@ func (handler *userHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, createUserHTTPResponseBody{
 		ID:        res.Id,
 		Email:     res.Email,
-		CreatedAt: res.CreatedAt.String(),
-		UpdatedAt: res.UpdatedAt.String(),
+		CreatedAt: res.CreatedAt,
+		UpdatedAt: res.UpdatedAt,
 	})
 }
 
 type loginUserHTTPRequestBody struct {
 	Email    string `json:"email"`
-	Password string `json:"Password"`
+	Password string `json:"password"`
 }
 
 type loginUserHTTPResponseBody struct {
@@ -133,6 +134,7 @@ type updateUserHTTPRequestBody struct {
 	Password string `json:"Password"`
 }
 
+// TODO: User needs proper response with updated at and created at
 type updateUserHTTPResponseBody struct {
 	ID    int32  `json:"id"`
 	Email string `json:"email"`
