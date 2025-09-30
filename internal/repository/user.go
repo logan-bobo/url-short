@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"time"
 
 	"url-short/internal/database"
@@ -32,7 +33,7 @@ func NewPostgresUserRepository(db *database.Queries) *PostgresUserRepository {
 }
 
 func (r *PostgresUserRepository) CreateUser(ctx context.Context, request user.CreateUserRequest) (*user.User, error) {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	res, err := r.db.CreateUser(ctx, database.CreateUserParams{
 		Email:     request.Email,
@@ -120,7 +121,7 @@ func (r *PostgresUserRepository) UpdateUser(ctx context.Context, request user.Up
 		Email:     request.Email,
 		Password:  request.NewPasswordHash,
 		ID:        request.Id,
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now().UTC(),
 	})
 
 	if err != nil {
@@ -136,6 +137,8 @@ func (r *PostgresUserRepository) UpdateUser(ctx context.Context, request user.Up
 }
 
 func getUserDomainErrorFromSQLError(sqlError error) error {
+	log.Println(sqlError)
+
 	if errors.Is(sqlError, sql.ErrNoRows) {
 		return user.ErrUserNotFound
 	}

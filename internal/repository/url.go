@@ -31,7 +31,7 @@ func (r *PostgresURLRepository) CreateShortURL(
 	ctx context.Context,
 	url shorturl.CreateURLRequest,
 ) (*shorturl.URL, error) {
-	now := time.Now()
+	now := time.Now().UTC()
 	res, err := r.db.CreateURL(ctx, database.CreateURLParams{
 		LongUrl:   url.LongURL,
 		ShortUrl:  url.ShortURL,
@@ -91,11 +91,11 @@ func (r *PostgresURLRepository) UpdateShortURL(
 	ctx context.Context,
 	url shorturl.UpdateURLRequest,
 ) (*shorturl.URL, error) {
-	// TODO: update the query to use updated at and update the field in the repo
 	res, err := r.db.UpdateShortURL(ctx, database.UpdateShortURLParams{
-		UserID:   url.UserID,
-		ShortUrl: url.ShortURL,
-		LongUrl:  url.LongURL,
+		UserID:    url.UserID,
+		UpdatedAt: time.Now().UTC(),
+		ShortUrl:  url.ShortURL,
+		LongUrl:   url.LongURL,
 	})
 
 	if err != nil {
