@@ -3,6 +3,7 @@ package application
 import (
 	"database/sql"
 	"net/http"
+	"time"
 
 	_ "github.com/lib/pq"
 
@@ -33,8 +34,11 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 	mux := http.NewServeMux()
 
 	server := &http.Server{
-		Addr:    ":" + s.Server.Port,
-		Handler: mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Addr:         ":" + s.Server.Port,
+		Handler:      mux,
 	}
 
 	opt, err := redis.ParseURL(s.Cache.GetCacheURL())
