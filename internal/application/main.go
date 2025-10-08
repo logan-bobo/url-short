@@ -9,12 +9,20 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/swaggo/http-swagger"
+	_ "url-short/docs"
+
 	"url-short/internal/configuration"
 	"url-short/internal/database"
 	"url-short/internal/repository"
 	"url-short/internal/service"
 	"url-short/internal/transport/http/api"
 )
+
+//	@title			URL Short
+//	@version		1.0
+//	@description	A simple URL shortener designed to convert longer URLs into concise, unique keys.
+//	@BasePath	/
 
 type Application struct {
 	Server    *http.Server
@@ -66,9 +74,10 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 	auth := api.NewAuthHandler(UserService)
 	urls := api.NewShortUrlHandler(URLservice)
 
+	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
+
 	mux.HandleFunc("GET /api/v1/healthz", api.GetHealth)
 
-	// url management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/urls",
 		auth.AuthenticationMiddleware(urls.CreateShortURL),
@@ -86,7 +95,6 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 		auth.AuthenticationMiddleware(urls.UpdateShortURL),
 	)
 
-	// user management endpoints
 	mux.HandleFunc(
 		"POST /api/v1/users",
 		users.CreateUser,
