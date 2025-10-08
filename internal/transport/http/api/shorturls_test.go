@@ -32,7 +32,7 @@ func TestPostLongURL(t *testing.T) {
 	urls := NewShortUrlHandler(app.URLService)
 
 	t.Run("test user can create short URL based on long", func(t *testing.T) {
-		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/data/shorten", bytes.NewBuffer(LongUrl))
+		postLongURLRequest := httptest.NewRequest(http.MethodPost, "/api/v1/urls", bytes.NewBuffer(LongUrl))
 
 		buildHeader := fmt.Sprintf("Bearer %s", userOne.RefreshToken)
 		postLongURLRequest.Header.Set("Authorization", buildHeader)
@@ -162,7 +162,7 @@ func TestUpdateShortURL(t *testing.T) {
 
 	postLongURLRequest := httptest.NewRequest(
 		http.MethodPost,
-		"/api/v1/data/shorten",
+		"/api/v1/urls",
 		bytes.NewBuffer(LongUrl),
 	)
 
@@ -189,7 +189,7 @@ func TestUpdateShortURL(t *testing.T) {
 		now := time.Now()
 		request, _ := http.NewRequest(
 			http.MethodPut,
-			fmt.Sprintf("/api/v1/%s", gotPutLongURL.ShortURL),
+			fmt.Sprintf("/api/v1/urls/%s", gotPutLongURL.ShortURL),
 			bytes.NewBuffer(LongUrl),
 		)
 		request.Header.Set("Content-Type", "application/json")
