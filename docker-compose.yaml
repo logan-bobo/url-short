@@ -5,7 +5,6 @@ services:
       - .env
     ports:
       - 5001:8080
-      - 5009:1323
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost/api/v1/healthz || exit 1
       interval: 2s
