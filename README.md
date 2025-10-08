@@ -27,7 +27,7 @@ sequenceDiagram
 4. On cache miss look up the long URL from database and store it in the cache
 5. Long URL is returned to the user with a HTTP redirect
 
-A breakdown of the API endpoints can be found [here](./doc/endpoints.md)
+A breakdown of the API endpoints can be found [here](./docs/swagger.yaml)
 
 ## Hash Functionality
 

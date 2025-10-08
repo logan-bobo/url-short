@@ -1,0 +1,32 @@
+definitions:
+  api.errorHTTPResponseBody:
+    properties:
+      error:
+        type: string
+    type: object
+  api.getHealthHTTPResponseBody:
+    properties:
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/healthz:
+    get:
+      description: get the health status of the server
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.getHealthHTTPResponseBody'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorHTTPResponseBody'
+      summary: Health Check
+      tags:
+      - health
+swagger: "2.0"
