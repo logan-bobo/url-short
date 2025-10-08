@@ -26,7 +26,9 @@ type createShortURLHTTPRequestBody struct {
 }
 
 type createShortURLHTTPResponseBody struct {
-	ShortURL string `json:"short_url"`
+	ShortURL  string    `json:"short_url"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request, user *user.User) {
@@ -54,7 +56,9 @@ func (h *shorturlHandler) CreateShortURL(w http.ResponseWriter, r *http.Request,
 	}
 
 	respondWithJSON(w, http.StatusCreated, createShortURLHTTPResponseBody{
-		ShortURL: createURLResponse.ShortURL,
+		ShortURL:  createURLResponse.ShortURL,
+		CreatedAt: createURLResponse.CreatedAt,
+		UpdatedAt: createURLResponse.UpdatedAt,
 	})
 }
 

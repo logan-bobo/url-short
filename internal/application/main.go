@@ -70,19 +70,19 @@ func NewApplication(s *configuration.ApplicationSettings) (*Application, error) 
 
 	// url management endpoints
 	mux.HandleFunc(
-		"POST /api/v1/data/shorten",
+		"POST /api/v1/urls",
 		auth.AuthenticationMiddleware(urls.CreateShortURL),
 	)
 	mux.HandleFunc(
-		"GET /api/v1/{shortUrl}",
+		"GET /api/v1/urls/{shortUrl}",
 		urls.GetShortURL,
 	)
 	mux.HandleFunc(
-		"DELETE /api/v1/{shortUrl}",
+		"DELETE /api/v1/urls/{shortUrl}",
 		auth.AuthenticationMiddleware(urls.DeleteShortURL),
 	)
 	mux.HandleFunc(
-		"PUT /api/v1/{shortUrl}",
+		"PUT /api/v1/urls{shortUrl}",
 		auth.AuthenticationMiddleware(urls.UpdateShortURL),
 	)
 
